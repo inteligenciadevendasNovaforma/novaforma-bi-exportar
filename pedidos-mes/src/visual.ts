@@ -85,10 +85,14 @@ export class Visual implements IVisual {
         if (idx < 0) { idx = t.columns.length - 1; }
         const celulas = t.rows.map(r => r[idx]).filter(v => typeof v === "string" && v) as string[];
         if (!celulas.length) { return; }
-        // confere o formato: codRep|representante|codCliente|razão|ordem|família|vendido (7 campos, vendido numérico)
-        const l0 = celulas[0].split("~")[0].split(/\r?\n/)[0].split("|");
-        if (l0.length !== 7 || !/^-?\d+(\.\d+)?$/.test(l0[6]) || !/^\d+$/.test(l0[4]) || !/^\d+$/.test(l0[2])) {
-            this.erroMedida = true; return;
+        // confere o formato (codRep|representante|codCliente|razão|ordem|família|vendido) na 1ª linha de dados;
+        // a célula do 1º representante pode trazer só o cabeçalho (começa com "~"), então procura a 1ª com linhas
+        const amostra = celulas.map(x => x.split("~")[0]).find(x => x.length > 0);
+        if (amostra) {
+            const l0 = amostra.split(/\r?\n/)[0].split("|");
+            if (l0.length !== 7 || !/^-?\d+(\.\d+)?$/.test(l0[6]) || !/^\d+$/.test(l0[4]) || !/^\d+$/.test(l0[2])) {
+                this.erroMedida = true; return;
+            }
         }
         const c = lerCarga(celulas, this.ordem());
         if (c.cabecalho.length) { this.filtros.lerCabecalho(c.cabecalho, 0); }
