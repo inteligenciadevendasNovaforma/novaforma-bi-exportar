@@ -34,6 +34,7 @@ export class Visual implements IVisual {
     private filtros: Filtros;
     private reps: RepPM[] = [];
     private nLinhas = 0;
+    private erroMedida = false;
     private temDados = false;
     private carregando = false;
     private limiteAtingido = false;
@@ -77,13 +78,18 @@ export class Visual implements IVisual {
     }
 
     private lerDados(dv: powerbi.DataView | undefined): void {
-        this.temDados = false; this.reps = []; this.nLinhas = 0;
+        this.temDados = false; this.erroMedida = false; this.reps = []; this.nLinhas = 0;
         const t = dv && dv.table;
         if (!t || !t.rows.length) { return; }
         let idx = t.columns.findIndex(c => c.roles && c.roles["dados"]);
         if (idx < 0) { idx = t.columns.length - 1; }
         const celulas = t.rows.map(r => r[idx]).filter(v => typeof v === "string" && v) as string[];
         if (!celulas.length) { return; }
+        // confere o formato: codRep|representante|codCliente|razão|ordem|família|vendido (7 campos, vendido numérico)
+        const l0 = celulas[0].split("~")[0].split(/\r?\n/)[0].split("|");
+        if (l0.length !== 7 || !/^-?\d+(\.\d+)?$/.test(l0[6]) || !/^\d+$/.test(l0[4]) || !/^\d+$/.test(l0[2])) {
+            this.erroMedida = true; return;
+        }
         const c = lerCarga(celulas, this.ordem());
         if (c.cabecalho.length) { this.filtros.lerCabecalho(c.cabecalho, 0); }
         this.reps = c.reps;
@@ -120,6 +126,10 @@ export class Visual implements IVisual {
         const corpo = this.corpo;
         const rolagem = corpo.scrollTop;
         while (corpo.firstChild) { corpo.removeChild(corpo.firstChild); }
+        if (this.erroMedida) {
+            corpo.appendChild(el("div", "pq-vazio", `A medida do campo não é a ${MEDIDA}. Troque pela medida do arquivo Pedidos_Mes_medida.dax (campo "Pedidos Mês (medida)").`));
+            return;
+        }
         if (!this.temDados) {
             corpo.appendChild(el("div", "pq-vazio", this.filtros.ativos() ? "Sem dados para os filtros escolhidos." : `Arraste o código do representante e a medida ${MEDIDA} para os campos do visual.`));
             return;
