@@ -1,0 +1,222 @@
+{
+    "privileges": [
+        {
+            "name": "ExportContent",
+            "essential": false
+        },
+        {
+            "name": "WebAccess",
+            "essential": false,
+            "parameters": [
+                "https://*.github.io"
+            ]
+        }
+    ],
+    "dataRoles": [
+        {
+            "displayName": "Representante",
+            "name": "rep",
+            "kind": "Grouping",
+            "description": "d_Representantes[Nome do Rep]"
+        },
+        {
+            "displayName": "Reps Sem Pedidos (medida)",
+            "name": "dados",
+            "kind": "Measure",
+            "description": "Medida Reps Sem Pedidos (visual)"
+        }
+    ],
+    "dataViewMappings": [
+        {
+            "conditions": [
+                {
+                    "rep": {
+                        "max": 1
+                    },
+                    "dados": {
+                        "max": 1
+                    }
+                }
+            ],
+            "table": {
+                "rows": {
+                    "select": [
+                        {
+                            "bind": {
+                                "to": "rep"
+                            }
+                        },
+                        {
+                            "bind": {
+                                "to": "dados"
+                            }
+                        }
+                    ],
+                    "dataReductionAlgorithm": {
+                        "window": {
+                            "count": 30000
+                        }
+                    }
+                }
+            }
+        }
+    ],
+    "objects": {
+        "general": {
+            "displayName": "Geral",
+            "properties": {
+                "filter": {
+                    "type": {
+                        "filter": true
+                    }
+                },
+                "selfFilter": {
+                    "type": {
+                        "filter": {
+                            "selfFilter": true
+                        }
+                    }
+                }
+            }
+        },
+        "titulo": {
+            "displayName": "Título",
+            "properties": {
+                "mostrar": {
+                    "displayName": "Mostrar",
+                    "type": {
+                        "bool": true
+                    }
+                },
+                "texto": {
+                    "displayName": "Texto",
+                    "type": {
+                        "text": true
+                    }
+                },
+                "faixa": {
+                    "displayName": "Texto da faixa",
+                    "type": {
+                        "text": true
+                    }
+                }
+            }
+        },
+        "fundo": {
+            "displayName": "Fundo do visual",
+            "properties": {
+                "mostrar": {
+                    "displayName": "Mostrar",
+                    "type": {
+                        "bool": true
+                    }
+                },
+                "cor": {
+                    "displayName": "Cor",
+                    "type": {
+                        "fill": {
+                            "solid": {
+                                "color": true
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "filtros": {
+            "displayName": "Filtros",
+            "properties": {
+                "mostrarBotao": {
+                    "displayName": "Mostrar botão Filtros",
+                    "type": {
+                        "bool": true
+                    }
+                },
+                "filtrarVisual": {
+                    "displayName": "Filtrar também este visual",
+                    "type": {
+                        "bool": true
+                    }
+                },
+                "colAno": {
+                    "displayName": "Ano (Tabela[Coluna])",
+                    "type": {
+                        "text": true
+                    }
+                },
+                "colMes": {
+                    "displayName": "Mês (Tabela[Coluna])",
+                    "type": {
+                        "text": true
+                    }
+                },
+                "colDia": {
+                    "displayName": "Dia (Tabela[Coluna])",
+                    "type": {
+                        "text": true
+                    }
+                },
+                "colSup": {
+                    "displayName": "Supervisão (Tabela[Coluna])",
+                    "type": {
+                        "text": true
+                    }
+                },
+                "colRep": {
+                    "displayName": "Representante (Tabela[Coluna])",
+                    "type": {
+                        "text": true
+                    }
+                },
+                "colFam": {
+                    "displayName": "Família (Tabela[Coluna]; ...)",
+                    "type": {
+                        "text": true
+                    }
+                },
+                "colMat": {
+                    "displayName": "Material (Tabela[Coluna]; ...)",
+                    "type": {
+                        "text": true
+                    }
+                },
+                "colUf": {
+                    "displayName": "UF (Tabela[Coluna])",
+                    "type": {
+                        "text": true
+                    }
+                }
+            }
+        },
+        "exportacao": {
+            "displayName": "Exportação",
+            "properties": {
+                "mostrarBotao": {
+                    "displayName": "Mostrar botão Exportar",
+                    "type": {
+                        "bool": true
+                    }
+                },
+                "nomeArquivo": {
+                    "displayName": "Nome do arquivo Excel",
+                    "type": {
+                        "text": true
+                    }
+                },
+                "usarPagina": {
+                    "displayName": "Baixar pela página de download (link)",
+                    "type": {
+                        "bool": true
+                    }
+                },
+                "urlPagina": {
+                    "displayName": "Endereço da página de download",
+                    "type": {
+                        "text": true
+                    }
+                }
+            }
+        }
+    },
+    "supportsKeyboardFocus": true
+}

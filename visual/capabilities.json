@@ -1,0 +1,171 @@
+{
+    "privileges": [
+        {
+            "name": "ExportContent",
+            "essential": false
+        },
+        {
+            "name": "WebAccess",
+            "essential": false,
+            "parameters": [
+                "https://*.github.io"
+            ]
+        }
+    ],
+    "dataRoles": [
+        {
+            "displayName": "Mês",
+            "name": "mes",
+            "kind": "Grouping"
+        },
+        {
+            "displayName": "Unidade",
+            "name": "unidade",
+            "kind": "Grouping"
+        },
+        {
+            "displayName": "Devoluções (medida)",
+            "name": "valor",
+            "kind": "Measure"
+        }
+    ],
+    "dataViewMappings": [
+        {
+            "table": {
+                "rows": {
+                    "select": [
+                        {
+                            "bind": {
+                                "to": "mes"
+                            }
+                        },
+                        {
+                            "bind": {
+                                "to": "unidade"
+                            }
+                        },
+                        {
+                            "bind": {
+                                "to": "valor"
+                            }
+                        }
+                    ],
+                    "dataReductionAlgorithm": {
+                        "window": {
+                            "count": 30000
+                        }
+                    }
+                }
+            }
+        }
+    ],
+    "objects": {
+        "titulo": {
+            "displayName": "Título",
+            "properties": {
+                "mostrar": {
+                    "displayName": "Mostrar",
+                    "type": {
+                        "bool": true
+                    }
+                },
+                "texto": {
+                    "displayName": "Texto",
+                    "type": {
+                        "text": true
+                    }
+                },
+                "tamanho": {
+                    "displayName": "Tamanho",
+                    "type": {
+                        "numeric": true
+                    }
+                },
+                "cor": {
+                    "displayName": "Cor",
+                    "type": {
+                        "fill": {
+                            "solid": {
+                                "color": true
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "fundo": {
+            "displayName": "Fundo do visual",
+            "properties": {
+                "mostrar": {
+                    "displayName": "Mostrar",
+                    "type": {
+                        "bool": true
+                    }
+                },
+                "cor": {
+                    "displayName": "Cor",
+                    "type": {
+                        "fill": {
+                            "solid": {
+                                "color": true
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "exportacao": {
+            "displayName": "Exportação",
+            "properties": {
+                "mostrarBotao": {
+                    "displayName": "Mostrar botão Exportar",
+                    "type": {
+                        "bool": true
+                    }
+                },
+                "nomeArquivo": {
+                    "displayName": "Nome do arquivo Excel",
+                    "type": {
+                        "text": true
+                    }
+                },
+                "incluirCards": {
+                    "displayName": "Padrão: incluir cards",
+                    "type": {
+                        "bool": true
+                    }
+                },
+                "incluirGraficos": {
+                    "displayName": "Padrão: incluir gráficos",
+                    "type": {
+                        "bool": true
+                    }
+                },
+                "incluirMatriz": {
+                    "displayName": "Padrão: incluir matriz",
+                    "type": {
+                        "bool": true
+                    }
+                },
+                "incluirDados": {
+                    "displayName": "Padrão: aba de dados brutos",
+                    "type": {
+                        "bool": true
+                    }
+                },
+                "usarPagina": {
+                    "displayName": "Baixar pela página de download (link)",
+                    "type": {
+                        "bool": true
+                    }
+                },
+                "urlPagina": {
+                    "displayName": "Endereço da página de download",
+                    "type": {
+                        "text": true
+                    }
+                }
+            }
+        }
+    }
+}

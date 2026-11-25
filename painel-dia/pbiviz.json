@@ -1,0 +1,25 @@
+{
+  "visual": {
+    "name": "painelDiaNovaForma",
+    "displayName": "Painel Dia (NovaForma)",
+    "guid": "painelDiaNovaForma7C1D2E3F4A5B60718293A4B5C6D7E8F90",
+    "visualClassName": "Visual",
+    "version": "1.2.0.0",
+    "description": "Painel de Vendas - Dia: cards, medidores por familia e tabela de positivacao diaria com mix do mes; botao Filtros (filtra a pagina)",
+    "supportUrl": "https://novaforma.example",
+    "gitHubUrl": ""
+  },
+  "apiVersion": "5.11.1",
+  "author": {
+    "name": "Gabriel",
+    "email": "bi@novaforma.example"
+  },
+  "assets": {
+    "icon": "assets/icon.png"
+  },
+  "externalJS": null,
+  "style": "style/visual.less",
+  "capabilities": "capabilities.json",
+  "dependencies": "dependencies.json",
+  "stringResources": []
+}

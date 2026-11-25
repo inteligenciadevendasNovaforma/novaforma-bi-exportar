@@ -1,0 +1,18 @@
+-- Tabela calculada com dados fictícios para testar o visual (Modelagem > Nova tabela)
+Devolucoes_Teste =
+DATATABLE(
+    "Mês", STRING,
+    "Unidade", STRING,
+    "Devoluções", INTEGER,
+    {
+        {"Jun","Sede",48},{"Jun","Filial",84},
+        {"Jul","Sede",70},{"Jul","Filial",111},
+        {"Ago","Sede",52},{"Ago","Filial",58},
+        {"Set","Sede",98},{"Set","Filial",138},
+        {"Out","Sede",81},{"Out","Filial",121},
+        {"Nov","Sede",60},{"Nov","Filial",92}
+    }
+)
+
+-- Medida (Nova medida), coloque no campo "Devoluções (medida)" do visual
+Total Devoluções = SUM ( Devolucoes_Teste[Devoluções] )

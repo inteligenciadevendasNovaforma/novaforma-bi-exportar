@@ -1,0 +1,25 @@
+{
+  "visual": {
+    "name": "repsSemPedidosNovaForma",
+    "displayName": "Reps Sem Pedidos (NovaForma)",
+    "guid": "repsSemPedidosNovaForma1C95BC9145E74EDFAD85D9FD7AC1C142",
+    "visualClassName": "Visual",
+    "version": "1.0.0.0",
+    "description": "Reps Sem Pedidos: lista dos representantes ativos sem cliente positivado no mes (NAO VENDEU), com botao Filtros que filtra a pagina e exportacao para Excel",
+    "supportUrl": "https://novaforma.example",
+    "gitHubUrl": ""
+  },
+  "apiVersion": "5.11.1",
+  "author": {
+    "name": "Gabriel",
+    "email": "bi@novaforma.example"
+  },
+  "assets": {
+    "icon": "assets/icon.png"
+  },
+  "externalJS": null,
+  "style": "style/visual.less",
+  "capabilities": "capabilities.json",
+  "dependencies": "dependencies.json",
+  "stringResources": []
+}

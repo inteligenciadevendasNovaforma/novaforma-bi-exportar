@@ -1,0 +1,100 @@
+// Medida de carga do visual "Reps Sem Pedidos" (tabela @Medida)
+// Uma linha por representante do universo do Painel (Ativo SAP, código <> "#", nome sem "VENDA"):  nome|uf|sup|cliMes
+//   cliMes = [CLI Mês] (clientes positivados no mês até a Data Ref, faturamento + carteira); vazio = não vendeu.
+//   O visual mostra só quem tem cliMes vazio ("NÃO VENDEU"); os demais vêm para o cabeçalho e os filtros nunca ficarem sem linha.
+// Na primeira linha (1º representante em ordem alfabética entre os selecionados) vai o cabeçalho, depois de "~":
+//   dataRef|anos|meses|dias|supervisoes|representantes|ufs|familias|materiais
+//   dataRef = yyyy-mm-dd; cada lista tem os valores separados por "^" (valores disponíveis para o botão Filtros).
+//   Cada lista ignora o filtro do próprio campo (como uma segmentação), para dar para trocar a seleção.
+Reps Sem Pedidos (visual) =
+VAR _nome = SELECTEDVALUE ( d_Representantes[Nome do Rep] )
+VAR _exibir = SELECTEDVALUE ( d_Representantes[Chave do Vendedor], _nome )
+VAR _painel =
+    CALCULATE (
+        COUNTROWS ( d_Representantes ),
+        KEEPFILTERS ( d_Representantes[Ativo SAP] = TRUE () ),
+        KEEPFILTERS ( d_Representantes[Código do Vendedor] <> "#" ),
+        KEEPFILTERS ( NOT CONTAINSSTRING ( d_Representantes[Nome do Rep], "VENDA" ) )
+    ) > 0
+VAR _uf = SELECTEDVALUE ( d_Representantes[UF], MIN ( d_Representantes[UF] ) )
+VAR _sup = SELECTEDVALUE ( d_Representantes[Supervisão], MIN ( d_Representantes[Supervisão] ) )
+VAR _mes = [CLI Mês]
+VAR _linha =
+    SUBSTITUTE ( SUBSTITUTE ( _exibir, "|", " " ), "~", " " ) & "|" & _uf & "|" & _sup & "|"
+        & IF ( ISBLANK ( _mes ), "", FORMAT ( _mes, "0", "en-US" ) )
+VAR _primeiro =
+    CALCULATE (
+        MIN ( d_Representantes[Nome do Rep] ),
+        ALLSELECTED ( d_Representantes ),
+        KEEPFILTERS ( d_Representantes[Ativo SAP] = TRUE () ),
+        KEEPFILTERS ( d_Representantes[Código do Vendedor] <> "#" ),
+        KEEPFILTERS ( NOT CONTAINSSTRING ( d_Representantes[Nome do Rep], "VENDA" ) )
+    )
+VAR _cab =
+    IF (
+        _nome = _primeiro,
+        VAR _ref = [Data Ref]
+        // listas para o botão Filtros (contexto do visual = filtros da página + filtros aplicados pelo próprio visual)
+        VAR _anos =
+            CALCULATE ( CONCATENATEX ( VALUES ( d_Calendario[Ano] ), FORMAT ( d_Calendario[Ano], "0" ), "^", d_Calendario[Ano], ASC ), REMOVEFILTERS ( d_Calendario ) )
+        VAR _meses =
+            CALCULATE (
+                CONCATENATEX ( SUMMARIZE ( d_Calendario, d_Calendario[MêsNro], d_Calendario[Mês] ), d_Calendario[Mês], "^", d_Calendario[MêsNro], ASC ),
+                REMOVEFILTERS ( d_Calendario )
+            )
+        VAR _dias =
+            CALCULATE ( CONCATENATEX ( VALUES ( d_Calendario[Dia] ), FORMAT ( d_Calendario[Dia], "0" ), "^", d_Calendario[Dia], ASC ), REMOVEFILTERS ( d_Calendario ) )
+        VAR _sups =
+            CALCULATE (
+                CONCATENATEX ( VALUES ( d_Representantes[Supervisão] ), SUBSTITUTE ( d_Representantes[Supervisão], "^", " " ), "^", d_Representantes[Supervisão], ASC ),
+                REMOVEFILTERS ( d_Representantes ),
+                d_Representantes[Ativo SAP] = TRUE (),
+                d_Representantes[Código do Vendedor] <> "#",
+                NOT CONTAINSSTRING ( d_Representantes[Nome do Rep], "VENDA" ),
+                NOT ISBLANK ( d_Representantes[Supervisão] )
+            )
+        // representantes: respeita Supervisão e UF escolhidas (cascata), ignora o próprio filtro de representante
+        VAR _reps =
+            CALCULATE (
+                CONCATENATEX ( VALUES ( d_Representantes[Nome do Rep] ), SUBSTITUTE ( d_Representantes[Nome do Rep], "^", " " ), "^", d_Representantes[Nome do Rep], ASC ),
+                REMOVEFILTERS ( d_Representantes[Nome do Rep] ),
+                REMOVEFILTERS ( d_Representantes[Chave do Vendedor] ),
+                KEEPFILTERS ( d_Representantes[Ativo SAP] = TRUE () ),
+                KEEPFILTERS ( d_Representantes[Código do Vendedor] <> "#" ),
+                KEEPFILTERS ( NOT CONTAINSSTRING ( d_Representantes[Nome do Rep], "VENDA" ) )
+            )
+        VAR _ufs =
+            CALCULATE (
+                CONCATENATEX ( VALUES ( d_Representantes[UF] ), d_Representantes[UF], "^", d_Representantes[UF], ASC ),
+                REMOVEFILTERS ( d_Representantes ),
+                d_Representantes[Ativo SAP] = TRUE (),
+                d_Representantes[Código do Vendedor] <> "#",
+                NOT CONTAINSSTRING ( d_Representantes[Nome do Rep], "VENDA" ),
+                NOT ISBLANK ( d_Representantes[UF] )
+            )
+        VAR _fams =
+            VAR _t =
+                DISTINCT (
+                    UNION (
+                        CALCULATETABLE ( VALUES ( f_Faturamento[Família] ), REMOVEFILTERS ( f_Faturamento ) ),
+                        CALCULATETABLE ( VALUES ( f_Carteira[Família] ), REMOVEFILTERS ( f_Carteira ) )
+                    )
+                )
+            RETURN CONCATENATEX ( FILTER ( _t, [Família] <> "" ), SUBSTITUTE ( [Família], "^", " " ), "^", [Família], ASC )
+        // materiais: respeita a Família escolhida (cascata), ignora o próprio filtro de material
+        VAR _mats =
+            VAR _t =
+                DISTINCT (
+                    UNION (
+                        CALCULATETABLE ( VALUES ( f_Faturamento[Material] ), REMOVEFILTERS ( f_Faturamento[Material] ), REMOVEFILTERS ( d_Calendario ), REMOVEFILTERS ( d_Representantes ) ),
+                        CALCULATETABLE ( VALUES ( f_Carteira[Material] ), REMOVEFILTERS ( f_Carteira[Material] ), REMOVEFILTERS ( d_Calendario ), REMOVEFILTERS ( d_Representantes ) )
+                    )
+                )
+            RETURN CONCATENATEX ( FILTER ( _t, [Material] <> "" ), SUBSTITUTE ( SUBSTITUTE ( SUBSTITUTE ( [Material], "^", " " ), "|", " " ), "~", " " ), "^", [Material], ASC )
+        RETURN
+            "~" & FORMAT ( _ref, "yyyy-mm-dd" ) & "|" & _anos & "|" & _meses & "|" & _dias & "|" & _sups & "|" & _reps & "|" & _ufs & "|"
+                & SUBSTITUTE ( _fams, "|", " " ) & "|" & _mats,
+        ""
+    )
+RETURN
+    IF ( _painel && NOT ISBLANK ( _nome ), _linha & _cab )
