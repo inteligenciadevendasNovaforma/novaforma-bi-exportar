@@ -7,6 +7,7 @@ import { gerarXlsxReps, EntradaReps } from "../reps-sem-pedidos/src/xlsxReps";
 import { gerarXlsxMetas, EntradaMetas } from "../painel-metas/src/xlsxMetas";
 import { gerarXlsxPedidos, expandir, CargaPedidos } from "../pedidos-mes/src/xlsxPedidos";
 import { gerarXlsxPainelVendas, expandir as expandirPV, CargaPV } from "../painel-vendas-aprovacao/src/xlsxPainelVendas";
+import { gerarXlsxMetasRep, expandir as expandirMR, CargaRep } from "../painel-metas-rep/src/xlsxMetasRep";
 import { ANTON_B64 } from "./fonte";
 
 interface CargaDia extends Omit<EntradaDia, "imagens"> { tipo: "painelDia"; svgs: { svg: string; w: number; h: number }[]; }
@@ -21,6 +22,8 @@ interface CargaMetas extends EntradaMetas { tipo: "painelMetas"; versao?: number
 interface CargaPM extends CargaPedidos { svgs?: undefined; }
 // Painel de Vendas (Data Aprovação e Data do APP) v1.0: um tipo só ("painelVendas"), título, aba, regra e meses vêm na carga
 interface CargaVendas extends CargaPV { svgs?: undefined; }
+// Painel Metas | Representante v1.0: um bloco por representante (formato compacto), pelo link ou colado (k=cola, prefixo NFMR1.)
+interface CargaMR extends CargaRep { svgs?: undefined; }
 interface Carga extends Omit<EntradaXlsx, "imagens"> { svgs: { svg: string; w: number; h: number }[]; }
 
 const $ = (s: string): HTMLElement => document.querySelector(s) as HTMLElement;
@@ -67,16 +70,17 @@ function entregar(bytes: Uint8Array, nome: string, mime: string): void {
     a.click();
 }
 
-// Tabelas grandes (Pedidos Mês, Painel de Vendas): o visual copia os dados ("NFPM1." ou "NFPV1." + base64url do deflate-raw)
+// Tabelas grandes (Pedidos Mês, Painel de Vendas, Painel Metas | Representante): o visual copia os dados ("NFPM1.", "NFPV1." ou "NFMR1." + base64url do deflate-raw)
 // e abre a página com k=cola. A página pede para colar (Ctrl+V ou botão Colar dados) e monta o Excel com o texto colado.
 // Nada sai do navegador.
 const PREFIXOS_COLA: { [p: string]: (carga: unknown) => Uint8Array } = {
     "NFPM1.": c => gerarXlsxPedidos(expandir(c as CargaPedidos)),
-    "NFPV1.": c => gerarXlsxPainelVendas(expandirPV(c as CargaPV))
+    "NFPV1.": c => gerarXlsxPainelVendas(expandirPV(c as CargaPV)),
+    "NFMR1.": c => gerarXlsxMetasRep(expandirMR(c as CargaRep))
 };
-function esperarCola(nome: string, mime: string, linhas: string): void {
+function esperarCola(nome: string, mime: string, linhas: string, unidade: string): void {
     $("#st").textContent = "⇩"; $("#tit").textContent = "Cole os dados do painel";
-    $("#msg").textContent = "A tabela" + (linhas ? " (" + Number(linhas).toLocaleString("pt-BR") + " linhas)" : "") + " é grande demais para o link e foi copiada pelo painel. Clique em Colar dados ou pressione Ctrl+V nesta página.";
+    $("#msg").textContent = "A tabela" + (linhas ? " (" + Number(linhas).toLocaleString("pt-BR") + " " + (unidade || "linhas") + ")" : "") + " é grande demais para o link e foi copiada pelo painel. Clique em Colar dados ou pressione Ctrl+V nesta página.";
     const bt = $("#cola") as HTMLButtonElement;
     bt.classList.remove("oculto");
     let feito = false;
@@ -107,12 +111,14 @@ function esperarCola(nome: string, mime: string, linhas: string): void {
         const j = p.get("j"), d = p.get("d");
         if (j) {
             const bruto = p.get("c") === "1" ? await inflar(b64u(j)) : b64u(j);
-            const carga = JSON.parse(new TextDecoder().decode(bruto)) as Carga | CargaDia | CargaMes | CargaPedido | CargaReps | CargaMetas | CargaPM | CargaVendas;
+            const carga = JSON.parse(new TextDecoder().decode(bruto)) as Carga | CargaDia | CargaMes | CargaPedido | CargaReps | CargaMetas | CargaPM | CargaVendas | CargaMR;
             const png = async (g: { svg: string; w: number; h: number }) => ({ png: await svgParaPng(g.svg, g.w, g.h), w: g.w, h: g.h });
             const imagens = [];
-            const semImagens = (carga as CargaPedidos).tipo === "pedidosMes" || (carga as CargaPedido).tipo === "pedidoDiario" || (carga as CargaReps).tipo === "repsSemPedidos" || (carga as CargaMetas).tipo === "painelMetas" || (carga as CargaVendas).tipo === "painelVendas";
+            const semImagens = (carga as CargaPedidos).tipo === "pedidosMes" || (carga as CargaPedido).tipo === "pedidoDiario" || (carga as CargaReps).tipo === "repsSemPedidos" || (carga as CargaMetas).tipo === "painelMetas" || (carga as CargaVendas).tipo === "painelVendas" || (carga as CargaMR).tipo === "painelMetasRep";
             for (const g of semImagens ? [] : carga.svgs || []) { imagens.push(await png(g)); }
-            if ((carga as CargaVendas).tipo === "painelVendas") {
+            if ((carga as CargaMR).tipo === "painelMetasRep") {
+                entregar(gerarXlsxMetasRep(expandirMR(carga as CargaMR)), nome, mime);
+            } else if ((carga as CargaVendas).tipo === "painelVendas") {
                 entregar(gerarXlsxPainelVendas(expandirPV(carga as CargaVendas)), nome, mime);
             } else if ((carga as CargaPedidos).tipo === "pedidosMes") {
                 entregar(gerarXlsxPedidos(expandir(carga as CargaPedidos)), nome, mime);
@@ -133,10 +139,10 @@ function esperarCola(nome: string, mime: string, linhas: string): void {
             } else if ((carga as CargaDia).tipo === "painelDia") { entregar(gerarXlsxDia({ ...(carga as CargaDia), imagens }), nome, mime); }
             else { entregar(gerarXlsx({ ...(carga as Carga), imagens }), nome, mime); }
         } else if (p.get("k") === "cola") {
-            esperarCola(nome, mime, p.get("q") || "");
+            esperarCola(nome, mime, p.get("q") || "", (p.get("u") || "").replace(/[^a-zà-ú ]/gi, ""));
         } else if (d) {
             const b = b64u(d);
             entregar(p.get("c") === "1" ? await inflar(b) : b, nome, p.get("t") || mime);
-        } else { erro("Nenhum arquivo recebido (página v2.4; o endereço chegou com " + location.hash.length + " caracteres depois do #). Abra esta página pelo botão Exportar do painel."); }
+        } else { erro("Nenhum arquivo recebido (página v2.5; o endereço chegou com " + location.hash.length + " caracteres depois do #). Abra esta página pelo botão Exportar do painel."); }
     } catch (e) { erro("O arquivo chegou incompleto ou passou do limite do endereço. " + (e instanceof Error ? e.message : "")); }
 })();

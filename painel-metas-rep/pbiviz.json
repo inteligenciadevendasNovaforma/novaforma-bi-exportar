@@ -1,0 +1,25 @@
+{
+  "visual": {
+    "name": "painelMetasRepNovaForma",
+    "displayName": "Painel Metas | Representante (NovaForma)",
+    "guid": "painelMetasRepNovaForma653F1BA1BE824430ABE776F9C6B1639D",
+    "visualClassName": "Visual",
+    "version": "1.0.0.0",
+    "description": "Painel Metas | Representante (Data do APP): um bloco por representante com KPIs de clientes e tabela por familia (aba (Data do APP) PAINEL METAS | Re); botao Filtros (filtra a pagina) e exportacao para Excel igual a aba",
+    "supportUrl": "https://novaforma.example",
+    "gitHubUrl": ""
+  },
+  "apiVersion": "5.11.1",
+  "author": {
+    "name": "Gabriel",
+    "email": "bi@novaforma.example"
+  },
+  "assets": {
+    "icon": "assets/icon.png"
+  },
+  "externalJS": null,
+  "style": "style/visual.less",
+  "capabilities": "capabilities.json",
+  "dependencies": "dependencies.json",
+  "stringResources": []
+}

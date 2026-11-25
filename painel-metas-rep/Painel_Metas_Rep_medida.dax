@@ -1,0 +1,184 @@
+// Medida de carga do visual "Painel Metas Rep" v1.0 (tabela @Medida). Campo do visual: Representante = d_Representantes[Código do Vendedor].
+// Réplica da aba "(Data do APP) PAINEL METAS | Re...": um bloco por representante (PAINEL DE VENDAS - MÊS | NOME - UF), regra Data do APP
+// (cotação do mês da Data Ref ou, sem cotação, data da ordem), chave = NOME do representante (como o Excel).
+// Uma célula de texto por representante (linha do visual); registros separados por quebra de linha (UNICHAR 10), campos por "|":
+//   R|codigo|nome|uf|objetivoClientes|clientesV|clientesF|pctClientesV
+//   F|codigo|ordem|familia|objetivo|vendidoMes|vendidoOntem|tendencia|faturado|objXFat|carteira|fatMaisCart|clienteMes|clientesOntem|clientesFaturados|clientesCarteira
+//      (ordem 0 / familia TOTAL = linha de total do bloco; ordem 1..5 = d_Familia[Ordem])
+//   Vazio = célula vazia. clientesV e % ficam vazios quando o representante não tem nenhum movimento (vendido, faturado ou carteira), como o Excel.
+// Universo (igual à aba): representantes ativos no SAP, sem bloqueio central de compras (Bloq = "#"), código <> "#", sem "VENDA" no nome,
+//   com objetivo em R$ ([Objetivo (R$) Rep]) ou meta de clientes ([Meta Clientes Representantes] > 0).
+//   Nome repetido em mais de um código (ex.: "JOAO WILLIAM SIQUEIRA CHAVES (600006)" e "(600565)"): um só bloco, no menor código do universo,
+//   com todas as medidas calculadas sobre todos os códigos desse nome (as medidas "Rep" já usam o nome; as demais seguem o relacionamento por código).
+// Nome do bloco = d_Representantes[Nome do Rep] sem o sufixo " (código)"; UF = d_Representantes[UF] (UF do representante, como no título da aba).
+// No 1º representante (menor código entre os selecionados com os filtros do universo) vai o cabeçalho, depois de "~"
+//   (se esse representante não tiver meta, a célula traz só o cabeçalho, começando com "~"):
+//   atualizacao|dataRef|anos|meses|dias|supervisoes|representantes|ufs|familias|materiais
+//   atualizacao = yyyy-mm-dd hh:nn:ss ('Atualização'[Última atualização]); dataRef = yyyy-mm-dd ([Data Ref]); listas do botão Filtros separadas por "^".
+// Medidas reutilizadas (pasta Desempenho Vendas\6 Painel Metas Rep): Objetivo (R$) Rep, Meta Clientes Representantes, Clientes Mês (Dinâmica),
+//   Clientes Ontem Rep, Vendido Mês Rep, Vendido Ontem Rep, Tendência (R$) Rep, % Clientes (V) Rep, Obj x Fat Rep;
+//   e (pasta 5 Painel Metas): Faturado Mês, Carteira (R$), Faturado + Carteira, Clientes (F), Clientes Carteira; mais Data Ref.
+// Família: d_Familia (desconectada), como nas medidas do painel; a linha de total vê todas as famílias do contexto.
+Painel Metas Rep (visual) =
+VAR _cod = SELECTEDVALUE ( d_Representantes[Código do Vendedor] )
+VAR _nl = UNICHAR ( 10 )
+VAR _nomeRep = SELECTEDVALUE ( d_Representantes[Nome do Rep] )
+VAR _suf = " (" & _cod & ")"
+VAR _nome =
+    IF ( RIGHT ( _nomeRep, LEN ( _suf ) ) = _suf, LEFT ( _nomeRep, LEN ( _nomeRep ) - LEN ( _suf ) ), _nomeRep )
+VAR _basico =
+    NOT ISBLANK ( _cod ) && _cod <> "#"
+        && CALCULATE (
+            COUNTROWS ( d_Representantes ),
+            KEEPFILTERS ( d_Representantes[Ativo SAP] = TRUE () ),
+            KEEPFILTERS ( d_Representantes[Bloq central compras] = "#" ),
+            KEEPFILTERS ( NOT CONTAINSSTRING ( d_Representantes[Nome do Rep], "VENDA" ) )
+        ) > 0
+// todos os códigos com o mesmo nome (sem o sufixo " (código)")
+VAR _codsNome =
+    SELECTCOLUMNS (
+        FILTER (
+            ALL ( d_Representantes[Código do Vendedor], d_Representantes[Nome do Rep] ),
+            VAR _s = " (" & d_Representantes[Código do Vendedor] & ")"
+            VAR _n = d_Representantes[Nome do Rep]
+            RETURN IF ( RIGHT ( _n, LEN ( _s ) ) = _s, LEFT ( _n, LEN ( _n ) - LEN ( _s ) ), _n ) = _nome
+        ),
+        "c", d_Representantes[Código do Vendedor]
+    )
+// o bloco fica no menor código do nome que passa no universo
+VAR _donoNome =
+    CALCULATE (
+        MIN ( d_Representantes[Código do Vendedor] ),
+        REMOVEFILTERS ( d_Representantes ),
+        TREATAS ( _codsNome, d_Representantes[Código do Vendedor] ),
+        d_Representantes[Ativo SAP] = TRUE (),
+        d_Representantes[Bloq central compras] = "#",
+        d_Representantes[Código do Vendedor] <> "#"
+    )
+VAR _famsCtx = VALUES ( d_Familia[Ordem] )
+VAR _famLinhas = UNION ( ROW ( "o", 0 ), SELECTCOLUMNS ( _famsCtx, "o", d_Familia[Ordem] ) )
+VAR _uf = SUBSTITUTE ( SUBSTITUTE ( SELECTEDVALUE ( d_Representantes[UF] ), "|", " " ), "~", " " )
+VAR _bloco =
+    IF (
+        _basico && _cod = _donoNome,
+        CALCULATE (
+            VAR _meta = [Meta Clientes Representantes]
+            VAR _obj = [Objetivo (R$) Rep]
+            RETURN
+                IF (
+                    NOT ISBLANK ( _obj ) || _meta > 0,
+                    VAR _cliV = [Clientes Mês (Dinâmica)]
+                    VAR _mov =
+                        NOT ISBLANK ( _cliV ) || NOT ISBLANK ( [Vendido Mês Rep] ) || NOT ISBLANK ( [Faturado Mês] ) || NOT ISBLANK ( [Carteira (R$)] )
+                    VAR _kpi =
+                        "R|" & _cod & "|" & SUBSTITUTE ( SUBSTITUTE ( SUBSTITUTE ( _nome, "|", " " ), "~", " " ), _nl, " " ) & "|" & _uf & "|"
+                            & FORMAT ( _meta, "0", "en-US" ) & "|"
+                            & IF ( _mov, FORMAT ( _cliV + 0, "0", "en-US" ) ) & "|"
+                            & FORMAT ( [Clientes (F)], "0", "en-US" ) & "|"
+                            & IF ( _mov, FORMAT ( [% Clientes (V) Rep], "0.000000", "en-US" ) )
+                    VAR _fams =
+                        CONCATENATEX (
+                            _famLinhas,
+                            VAR _o = [o]
+                            RETURN
+                                CALCULATE (
+                                    VAR _nf = IF ( _o = 0, "TOTAL", SUBSTITUTE ( SUBSTITUTE ( MIN ( d_Familia[Nome] ), "|", " " ), "~", " " ) )
+                                    RETURN
+                                        "F|" & _cod & "|" & _o & "|" & _nf & "|"
+                                            & FORMAT ( [Objetivo (R$) Rep], "0.00", "en-US" ) & "|"
+                                            & FORMAT ( [Vendido Mês Rep], "0.00", "en-US" ) & "|"
+                                            & FORMAT ( [Vendido Ontem Rep], "0.00", "en-US" ) & "|"
+                                            & FORMAT ( [Tendência (R$) Rep], "0.00", "en-US" ) & "|"
+                                            & FORMAT ( [Faturado Mês], "0.00", "en-US" ) & "|"
+                                            & FORMAT ( [Obj x Fat Rep], "0.000000", "en-US" ) & "|"
+                                            & FORMAT ( [Carteira (R$)], "0.00", "en-US" ) & "|"
+                                            & FORMAT ( [Faturado + Carteira], "0.00", "en-US" ) & "|"
+                                            & FORMAT ( [Clientes Mês (Dinâmica)], "0", "en-US" ) & "|"
+                                            & FORMAT ( [Clientes Ontem Rep], "0", "en-US" ) & "|"
+                                            & FORMAT ( [Clientes (F)], "0", "en-US" ) & "|"
+                                            & FORMAT ( [Clientes Carteira], "0", "en-US" ),
+                                    // ordem 0 = total do bloco: todas as famílias do contexto (as medidas tratam as 5 siglas como "sem filtro")
+                                    KEEPFILTERS ( TREATAS ( FILTER ( _famsCtx, _o = 0 || d_Familia[Ordem] = _o ), d_Familia[Ordem] ) )
+                                ),
+                            _nl,
+                            [o], ASC
+                        )
+                    RETURN
+                        _kpi & _nl & _fams
+                ),
+            REMOVEFILTERS ( d_Representantes ),
+            TREATAS ( _codsNome, d_Representantes[Código do Vendedor] )
+        )
+    )
+VAR _primeiro =
+    CALCULATE (
+        MIN ( d_Representantes[Código do Vendedor] ),
+        ALLSELECTED ( d_Representantes ),
+        KEEPFILTERS ( d_Representantes[Código do Vendedor] <> "#" ),
+        KEEPFILTERS ( d_Representantes[Ativo SAP] = TRUE () ),
+        KEEPFILTERS ( d_Representantes[Bloq central compras] = "#" ),
+        KEEPFILTERS ( NOT CONTAINSSTRING ( d_Representantes[Nome do Rep], "VENDA" ) )
+    )
+VAR _cab =
+    IF (
+        _basico && _cod = _primeiro,
+        VAR _ref = [Data Ref]
+        VAR _atu = MAX ( 'Atualização'[Última atualização] )
+        VAR _anos =
+            CALCULATE ( CONCATENATEX ( VALUES ( d_Calendario[Ano] ), FORMAT ( d_Calendario[Ano], "0" ), "^", d_Calendario[Ano], ASC ), REMOVEFILTERS ( d_Calendario ) )
+        VAR _meses =
+            CALCULATE (
+                CONCATENATEX ( SUMMARIZE ( d_Calendario, d_Calendario[MêsNro], d_Calendario[Mês] ), d_Calendario[Mês], "^", d_Calendario[MêsNro], ASC ),
+                REMOVEFILTERS ( d_Calendario )
+            )
+        VAR _diasCal =
+            CALCULATE ( CONCATENATEX ( VALUES ( d_Calendario[Dia] ), FORMAT ( d_Calendario[Dia], "0" ), "^", d_Calendario[Dia], ASC ), REMOVEFILTERS ( d_Calendario ) )
+        VAR _sups =
+            CALCULATE (
+                CONCATENATEX ( VALUES ( d_Representantes[Supervisão] ), SUBSTITUTE ( d_Representantes[Supervisão], "^", " " ), "^", d_Representantes[Supervisão], ASC ),
+                REMOVEFILTERS ( d_Representantes ),
+                d_Representantes[Ativo SAP] = TRUE (),
+                d_Representantes[Código do Vendedor] <> "#",
+                NOT ISBLANK ( d_Representantes[Supervisão] )
+            )
+        // representantes: respeita Supervisão e UF escolhidas (cascata), ignora o próprio filtro de representante
+        VAR _reps =
+            CALCULATE (
+                CONCATENATEX ( VALUES ( d_Representantes[Nome do Rep] ), SUBSTITUTE ( d_Representantes[Nome do Rep], "^", " " ), "^", d_Representantes[Nome do Rep], ASC ),
+                REMOVEFILTERS ( d_Representantes[Nome do Rep] ),
+                REMOVEFILTERS ( d_Representantes[Chave do Vendedor] ),
+                REMOVEFILTERS ( d_Representantes[Código do Vendedor] ),
+                KEEPFILTERS ( d_Representantes[Ativo SAP] = TRUE () ),
+                KEEPFILTERS ( d_Representantes[Bloq central compras] = "#" ),
+                KEEPFILTERS ( d_Representantes[Código do Vendedor] <> "#" ),
+                KEEPFILTERS ( NOT CONTAINSSTRING ( d_Representantes[Nome do Rep], "VENDA" ) )
+            )
+        VAR _ufs =
+            CALCULATE (
+                CONCATENATEX ( VALUES ( d_Representantes[UF] ), d_Representantes[UF], "^", d_Representantes[UF], ASC ),
+                REMOVEFILTERS ( d_Representantes ),
+                d_Representantes[Ativo SAP] = TRUE (),
+                d_Representantes[Código do Vendedor] <> "#",
+                NOT ISBLANK ( d_Representantes[UF] )
+            )
+        VAR _famsLista =
+            CALCULATE (
+                CONCATENATEX ( VALUES ( d_Familia[Nome] ), SUBSTITUTE ( d_Familia[Nome], "^", " " ), "^", CALCULATE ( MIN ( d_Familia[Ordem] ) ), ASC ),
+                REMOVEFILTERS ( d_Familia )
+            )
+        // materiais: respeita a Família escolhida (cascata), ignora o próprio filtro de material
+        VAR _mats =
+            VAR _t =
+                DISTINCT (
+                    UNION (
+                        CALCULATETABLE ( VALUES ( f_Faturamento[Material] ), REMOVEFILTERS ( f_Faturamento[Material] ), REMOVEFILTERS ( d_Calendario ), REMOVEFILTERS ( d_Representantes ) ),
+                        CALCULATETABLE ( VALUES ( f_Carteira[Material] ), REMOVEFILTERS ( f_Carteira[Material] ), REMOVEFILTERS ( d_Calendario ), REMOVEFILTERS ( d_Representantes ) )
+                    )
+                )
+            RETURN CONCATENATEX ( FILTER ( _t, [Material] <> "" ), SUBSTITUTE ( SUBSTITUTE ( SUBSTITUTE ( [Material], "^", " " ), "|", " " ), "~", " " ), "^", [Material], ASC )
+        RETURN
+            "~" & FORMAT ( _atu, "yyyy-mm-dd hh:nn:ss" ) & "|" & FORMAT ( _ref, "yyyy-mm-dd" ) & "|" & _anos & "|" & _meses & "|" & _diasCal & "|"
+                & SUBSTITUTE ( _sups, "|", " " ) & "|" & SUBSTITUTE ( _reps, "|", " " ) & "|" & _ufs & "|" & SUBSTITUTE ( _famsLista, "|", " " ) & "|" & _mats
+    )
+RETURN
+    IF ( NOT ISBLANK ( _bloco ) || NOT ISBLANK ( _cab ), _bloco & _cab )
