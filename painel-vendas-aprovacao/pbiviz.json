@@ -1,0 +1,25 @@
+{
+  "visual": {
+    "name": "painelVendasAprovacaoNovaForma",
+    "displayName": "Painel Vendas (Data Aprovação) (NovaForma)",
+    "guid": "painelVendasAprovacaoNovaForma35CC1A13A8C643358403DEB3C386CB6F",
+    "visualClassName": "Visual",
+    "version": "1.0.0.0",
+    "description": "Painel de Vendas (Data Aprovacao): vendido, faturado, carteira, clientes e mix por representante (aba (Data Aprovacao) EVOLUCAO VENDA); botao Filtros (filtra a pagina) e exportacao para Excel igual a aba",
+    "supportUrl": "https://novaforma.example",
+    "gitHubUrl": ""
+  },
+  "apiVersion": "5.11.1",
+  "author": {
+    "name": "Gabriel",
+    "email": "bi@novaforma.example"
+  },
+  "assets": {
+    "icon": "assets/icon.png"
+  },
+  "externalJS": null,
+  "style": "style/visual.less",
+  "capabilities": "capabilities.json",
+  "dependencies": "dependencies.json",
+  "stringResources": []
+}

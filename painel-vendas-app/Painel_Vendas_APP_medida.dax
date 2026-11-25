@@ -1,0 +1,147 @@
+// Medida de carga do visual "Painel Vendas APP (visual)" v1.0 (tabela @Medida). Campo do visual: Representante = d_Representantes[Código do Vendedor].
+// Réplica da aba (Data APP) EVOLUÇÃO VENDA (PAINEL DE VENDAS - DIA), regra Data do APP (Mês Cotação (3 meses), sem cotação = Mês da ordem venda).
+// Uma linha de texto por representante (linha do visual), campos separados por "|":
+//   P|codigo|representante|uf|sup|V1|V2|V3|F1|F2|F3|carteira|Q1|Q2|Q3|FB|FC|PT|AP|CT
+//   P = marca da regra (A = Data Aprovação, P = Data do APP): o visual confere se a medida do campo é a dele
+//   representante = d_Representantes[Chave do Vendedor] (nome sem código, como na aba); uf/sup = d_Representantes[UF]/[Supervisão]
+//   V1..V3 = VENDIDO antepenúltimo/penúltimo/atual; F1..F3 = FATURADO; carteira = CARTEIRA Em Aberto; Q1..Q3 = CLIENTES (VENDIDO)
+//   FB..CT = MIX (VENDIDO %) do mês atual (fração 0-1). Valor que arredonda a 0 sai vazio (célula vazia, como no Excel e na matriz nativa).
+// Universo (igual à aba): representantes ativos no SAP, sem bloqueio central de compras (Bloq = "#"), código <> "#", sem "VENDA" no nome.
+// Datas: as medidas reutilizadas ignoram d_Calendario (meses do BW / TODAY), como a matriz nativa [Painel Vendas Valor]; Carteira = posição atual.
+// No 1º representante (menor código entre os selecionados) vai o cabeçalho, depois de "~":
+//   titulo1|titulo2|titulo3|dataRef|anos|meses|dias|supervisoes|representantes|ufs|familias|materiais
+//   titulos = [Título Antepenúltimo Mês], [Título Penúltimo Mês], [Título Mês Atual] (ex.: "setembro 2026"); dataRef = yyyy-mm-dd;
+//   as 8 listas (botão Filtros) têm os valores separados por "^"; cada lista ignora o filtro do próprio campo.
+// Medidas reutilizadas: [Vendido Antepenúltimo Mês (APP)], [Vendido Penúltimo Mês (APP)], [Vendido Mês Atual (APP)], [Faturado Antepenúltimo Mês], [Faturado Penúltimo Mês],
+//   [Faturado Mês (Painel Vendas)], [Carteira (R$)], [Clientes (V) Antepenúltimo Mês (APP)], [Clientes (V) Penúltimo Mês (APP)], [Clientes (V) Mês Atual (APP)], [Mix % (APP)] (por d_Familia[Sigla]),
+//   [Título Antepenúltimo Mês], [Título Penúltimo Mês], [Título Mês Atual], [Data Ref]. Mesma regra de célula vazia de [Painel Vendas Valor].
+Painel Vendas APP (visual) =
+VAR _cod = SELECTEDVALUE ( d_Representantes[Código do Vendedor] )
+VAR _nl = UNICHAR ( 10 )
+VAR _painel =
+    NOT ISBLANK ( _cod ) && _cod <> "#"
+        && CALCULATE (
+            COUNTROWS ( d_Representantes ),
+            KEEPFILTERS ( d_Representantes[Ativo SAP] = TRUE () ),
+            KEEPFILTERS ( d_Representantes[Bloq central compras] = "#" ),
+            KEEPFILTERS ( NOT CONTAINSSTRING ( d_Representantes[Nome do Rep], "VENDA" ) )
+        ) > 0
+// valores (vazio quando arredonda a 0, como [Painel Vendas Valor])
+VAR _v1 = [Vendido Antepenúltimo Mês (APP)]
+VAR _v2 = [Vendido Penúltimo Mês (APP)]
+VAR _v3 = [Vendido Mês Atual (APP)]
+VAR _f1 = [Faturado Antepenúltimo Mês]
+VAR _f2 = [Faturado Penúltimo Mês]
+VAR _f3 = [Faturado Mês (Painel Vendas)]
+VAR _ct = [Carteira (R$)]
+VAR _q1 = [Clientes (V) Antepenúltimo Mês (APP)]
+VAR _q2 = [Clientes (V) Penúltimo Mês (APP)]
+VAR _q3 = [Clientes (V) Mês Atual (APP)]
+VAR _tv1 = IF ( ISBLANK ( _v1 ) || ROUND ( _v1, 0 ) = 0, "", FORMAT ( _v1, "0.00", "en-US" ) )
+VAR _tv2 = IF ( ISBLANK ( _v2 ) || ROUND ( _v2, 0 ) = 0, "", FORMAT ( _v2, "0.00", "en-US" ) )
+VAR _tv3 = IF ( ISBLANK ( _v3 ) || ROUND ( _v3, 0 ) = 0, "", FORMAT ( _v3, "0.00", "en-US" ) )
+VAR _tf1 = IF ( ISBLANK ( _f1 ) || ROUND ( _f1, 0 ) = 0, "", FORMAT ( _f1, "0.00", "en-US" ) )
+VAR _tf2 = IF ( ISBLANK ( _f2 ) || ROUND ( _f2, 0 ) = 0, "", FORMAT ( _f2, "0.00", "en-US" ) )
+VAR _tf3 = IF ( ISBLANK ( _f3 ) || ROUND ( _f3, 0 ) = 0, "", FORMAT ( _f3, "0.00", "en-US" ) )
+VAR _tct = IF ( ISBLANK ( _ct ) || ROUND ( _ct, 0 ) = 0, "", FORMAT ( _ct, "0.00", "en-US" ) )
+VAR _tq1 = IF ( ISBLANK ( _q1 ) || ROUND ( _q1, 0 ) = 0, "", FORMAT ( _q1, "0", "en-US" ) )
+VAR _tq2 = IF ( ISBLANK ( _q2 ) || ROUND ( _q2, 0 ) = 0, "", FORMAT ( _q2, "0", "en-US" ) )
+VAR _tq3 = IF ( ISBLANK ( _q3 ) || ROUND ( _q3, 0 ) = 0, "", FORMAT ( _q3, "0", "en-US" ) )
+// mix: participação da família no vendido do mês atual; vazio quando o vendido da família arredonda a 0
+VAR _mFB =
+    VAR _f = CALCULATE ( [Vendido Mês Atual (APP)], d_Familia[Sigla] = "FB" )
+    RETURN IF ( ISBLANK ( _f ) || ROUND ( _f, 0 ) = 0, "", FORMAT ( CALCULATE ( [Mix % (APP)], d_Familia[Sigla] = "FB" ), "0.000000", "en-US" ) )
+VAR _mFC =
+    VAR _f = CALCULATE ( [Vendido Mês Atual (APP)], d_Familia[Sigla] = "FC" )
+    RETURN IF ( ISBLANK ( _f ) || ROUND ( _f, 0 ) = 0, "", FORMAT ( CALCULATE ( [Mix % (APP)], d_Familia[Sigla] = "FC" ), "0.000000", "en-US" ) )
+VAR _mPT =
+    VAR _f = CALCULATE ( [Vendido Mês Atual (APP)], d_Familia[Sigla] = "PT" )
+    RETURN IF ( ISBLANK ( _f ) || ROUND ( _f, 0 ) = 0, "", FORMAT ( CALCULATE ( [Mix % (APP)], d_Familia[Sigla] = "PT" ), "0.000000", "en-US" ) )
+VAR _mAP =
+    VAR _f = CALCULATE ( [Vendido Mês Atual (APP)], d_Familia[Sigla] = "AP" )
+    RETURN IF ( ISBLANK ( _f ) || ROUND ( _f, 0 ) = 0, "", FORMAT ( CALCULATE ( [Mix % (APP)], d_Familia[Sigla] = "AP" ), "0.000000", "en-US" ) )
+VAR _mCT =
+    VAR _f = CALCULATE ( [Vendido Mês Atual (APP)], d_Familia[Sigla] = "CT" )
+    RETURN IF ( ISBLANK ( _f ) || ROUND ( _f, 0 ) = 0, "", FORMAT ( CALCULATE ( [Mix % (APP)], d_Familia[Sigla] = "CT" ), "0.000000", "en-US" ) )
+VAR _limpa = ( SELECTEDVALUE ( d_Representantes[Chave do Vendedor], SELECTEDVALUE ( d_Representantes[Nome do Rep] ) ) )
+VAR _nome = SUBSTITUTE ( SUBSTITUTE ( SUBSTITUTE ( _limpa, "|", " " ), "~", " " ), _nl, " " )
+VAR _sup = SUBSTITUTE ( SUBSTITUTE ( SELECTEDVALUE ( d_Representantes[Supervisão] ), "|", " " ), "~", " " )
+VAR _linha =
+    "P|" & _cod & "|" & _nome & "|" & SELECTEDVALUE ( d_Representantes[UF] ) & "|" & _sup & "|"
+        & _tv1 & "|" & _tv2 & "|" & _tv3 & "|" & _tf1 & "|" & _tf2 & "|" & _tf3 & "|" & _tct & "|"
+        & _tq1 & "|" & _tq2 & "|" & _tq3 & "|"
+        & _mFB & "|" & _mFC & "|" & _mPT & "|" & _mAP & "|" & _mCT
+VAR _primeiro =
+    CALCULATE (
+        MIN ( d_Representantes[Código do Vendedor] ),
+        ALLSELECTED ( d_Representantes ),
+        KEEPFILTERS ( d_Representantes[Código do Vendedor] <> "#" ),
+        KEEPFILTERS ( d_Representantes[Ativo SAP] = TRUE () ),
+        KEEPFILTERS ( d_Representantes[Bloq central compras] = "#" ),
+        KEEPFILTERS ( NOT CONTAINSSTRING ( d_Representantes[Nome do Rep], "VENDA" ) )
+    )
+VAR _cab =
+    IF (
+        _painel && _cod = _primeiro,
+        VAR _ref = [Data Ref]
+        VAR _anos =
+            CALCULATE ( CONCATENATEX ( VALUES ( d_Calendario[Ano] ), FORMAT ( d_Calendario[Ano], "0" ), "^", d_Calendario[Ano], ASC ), REMOVEFILTERS ( d_Calendario ) )
+        VAR _meses =
+            CALCULATE (
+                CONCATENATEX ( SUMMARIZE ( d_Calendario, d_Calendario[MêsNro], d_Calendario[Mês] ), d_Calendario[Mês], "^", d_Calendario[MêsNro], ASC ),
+                REMOVEFILTERS ( d_Calendario )
+            )
+        VAR _diasCal =
+            CALCULATE ( CONCATENATEX ( VALUES ( d_Calendario[Dia] ), FORMAT ( d_Calendario[Dia], "0" ), "^", d_Calendario[Dia], ASC ), REMOVEFILTERS ( d_Calendario ) )
+        VAR _sups =
+            CALCULATE (
+                CONCATENATEX ( VALUES ( d_Representantes[Supervisão] ), SUBSTITUTE ( d_Representantes[Supervisão], "^", " " ), "^", d_Representantes[Supervisão], ASC ),
+                REMOVEFILTERS ( d_Representantes ),
+                d_Representantes[Ativo SAP] = TRUE (),
+                d_Representantes[Código do Vendedor] <> "#",
+                NOT ISBLANK ( d_Representantes[Supervisão] )
+            )
+        // representantes: respeita Supervisão e UF escolhidas (cascata), ignora o próprio filtro de representante
+        VAR _reps =
+            CALCULATE (
+                CONCATENATEX ( VALUES ( d_Representantes[Nome do Rep] ), SUBSTITUTE ( d_Representantes[Nome do Rep], "^", " " ), "^", d_Representantes[Nome do Rep], ASC ),
+                REMOVEFILTERS ( d_Representantes[Nome do Rep] ),
+                REMOVEFILTERS ( d_Representantes[Chave do Vendedor] ),
+                REMOVEFILTERS ( d_Representantes[Código do Vendedor] ),
+                KEEPFILTERS ( d_Representantes[Ativo SAP] = TRUE () ),
+                KEEPFILTERS ( d_Representantes[Bloq central compras] = "#" ),
+                KEEPFILTERS ( d_Representantes[Código do Vendedor] <> "#" )
+            )
+        VAR _ufs =
+            CALCULATE (
+                CONCATENATEX ( VALUES ( d_Representantes[UF] ), d_Representantes[UF], "^", d_Representantes[UF], ASC ),
+                REMOVEFILTERS ( d_Representantes ),
+                d_Representantes[Ativo SAP] = TRUE (),
+                d_Representantes[Código do Vendedor] <> "#",
+                NOT ISBLANK ( d_Representantes[UF] )
+            )
+        VAR _fams =
+            VAR _t =
+                DISTINCT (
+                    UNION (
+                        CALCULATETABLE ( VALUES ( f_Faturamento[Família] ), REMOVEFILTERS ( f_Faturamento ) ),
+                        CALCULATETABLE ( VALUES ( f_Carteira[Família] ), REMOVEFILTERS ( f_Carteira ) )
+                    )
+                )
+            RETURN CONCATENATEX ( FILTER ( _t, [Família] <> "" ), SUBSTITUTE ( SUBSTITUTE ( [Família], "^", " " ), "|", " " ), "^", [Família], ASC )
+        // materiais: respeita a Família escolhida (cascata), ignora o próprio filtro de material
+        VAR _mats =
+            VAR _t =
+                DISTINCT (
+                    UNION (
+                        CALCULATETABLE ( VALUES ( f_Faturamento[Material] ), REMOVEFILTERS ( f_Faturamento[Material] ), REMOVEFILTERS ( d_Calendario ), REMOVEFILTERS ( d_Representantes ) ),
+                        CALCULATETABLE ( VALUES ( f_Carteira[Material] ), REMOVEFILTERS ( f_Carteira[Material] ), REMOVEFILTERS ( d_Calendario ), REMOVEFILTERS ( d_Representantes ) )
+                    )
+                )
+            RETURN CONCATENATEX ( FILTER ( _t, [Material] <> "" ), SUBSTITUTE ( SUBSTITUTE ( SUBSTITUTE ( [Material], "^", " " ), "|", " " ), "~", " " ), "^", [Material], ASC )
+        RETURN
+            "~" & [Título Antepenúltimo Mês] & "|" & [Título Penúltimo Mês] & "|" & [Título Mês Atual] & "|" & FORMAT ( _ref, "yyyy-mm-dd" ) & "|"
+                & _anos & "|" & _meses & "|" & _diasCal & "|" & _sups & "|" & _reps & "|" & _ufs & "|" & _fams & "|" & _mats
+    )
+RETURN
+    IF ( _painel, _linha & _cab )

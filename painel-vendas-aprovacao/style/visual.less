@@ -1,0 +1,131 @@
+@import "anton.less";
+// Painel de Vendas (Data Aprovação / Data do APP): cores e proporções da aba EVOLUÇÃO VENDA do exemplo,
+// com tons um pouco mais escuros nas faixas coloridas para contraste mínimo de 4,5:1 com o texto (o Excel exportado usa as cores originais).
+@navy: #0B2A4A;      // azul-marinho NovaForma (botões, painel de filtros)
+@navyAba: #003463;   // azul-marinho da aba (título, faixas VENDIDO e MIX, texto do cabeçalho)
+@teal: #007D7B;      // faixa FATURADO e família FB (aba: #308C83)
+@laranja: #C2410C;   // faixa CLIENTES (VENDIDO) e família AP (aba: #F25C05)
+@amarelo: #F2B705;   // família FC (texto azul-marinho)
+@ciano: #00C7FF;     // família CT (texto azul-marinho)
+@cabCinza: #D6DCE4;  // linha de cabeçalho
+@rosa: #FFD5DA;      // mix vazio
+@borda: #C6C3C6;     // bordas das linhas
+@texto: #333333;
+@anton: AntonPD, Impact, "Arial Narrow", sans-serif;
+.pv {
+    container-type: inline-size;
+    position: relative;
+    box-sizing: border-box;
+    width: 100%; height: 100%;
+    display: flex; flex-direction: column;
+    font-family: Arial, "Segoe UI", sans-serif;
+    color: #1B1B1B;
+    overflow: hidden;
+    * { box-sizing: border-box; }
+}
+.pv-vazio { margin: 24px; color: #4B5563; font-size: 15px; line-height: 1.45; }
+.pv-vazio.erro { color: #B42318; font-weight: 600; }
+.pv-copia { position: fixed; left: -9999px; top: 0; width: 10px; height: 10px; opacity: 0; }
+
+// topo: título centralizado (como B2:M2 da aba, Impact azul-marinho) e botões à direita
+.pv-topo { flex: 0 0 auto; display: flex; align-items: center; gap: 16px; padding: clamp(8px, 1cqw, 14px) clamp(10px, 1.4cqw, 24px); min-height: 56px; }
+.pv-titulo { flex: 1 1 auto; min-width: 0; margin: 0; color: @navyAba; font-family: @anton; font-weight: 400; text-align: center; font-size: clamp(20px, 1.6cqw, 28px); line-height: 1.3; letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pv-regra { display: inline-block; vertical-align: middle; margin-left: 14px; padding: 2px 10px; border: 1.5px solid @navyAba; border-radius: 12px; font: 600 15px Arial, sans-serif; letter-spacing: 0; color: @navyAba; position: relative; top: -2px; }
+.pv-espaco { flex: 1; }
+.pv-acoes { flex: 0 0 auto; display: flex; gap: 8px; align-items: flex-start; position: relative; z-index: 10; }
+.pv-btn { font: 600 15px Arial, sans-serif; color: @navy; background: #FFF; border: 2px solid @navy; border-radius: 6px; padding: 6px 14px; cursor: pointer; line-height: 1.2; white-space: nowrap; }
+.pv-btn:hover { background: #EAF1FA; }
+.pv-btn:focus-visible, .fp button:focus-visible, .fp input:focus-visible, .ex-menu input:focus-visible, .ex-go:focus-visible, .ex-copiar:focus-visible, .ex-msg-x:focus-visible, .pv-tw:focus-visible { outline: 3px solid #1465b3; outline-offset: 2px; }
+.fl-btn.ativo { background: @navy; color: #FFF; }
+.fl-n { display: inline-block; min-width: 22px; margin-left: 8px; padding: 1px 6px; border-radius: 11px; background: #FFF; color: @navy; font-size: 15px; font-weight: 700; text-align: center; }
+
+// tabela rolável com as duas linhas de cabeçalho fixas (faixas + meses)
+.pv-corpo { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; padding: 0 clamp(8px, 0.8cqw, 24px) clamp(8px, 1cqw, 16px); }
+.pv-tw { flex: 1 1 auto; min-height: 0; overflow: auto; scrollbar-width: thin; }
+.pv-tab { width: 100%; min-width: 1240px; border-collapse: separate; border-spacing: 0; table-layout: fixed; background: #FFF; color: @texto; font-size: clamp(15px, 0.92cqw, 18px); font-variant-numeric: tabular-nums; }
+.pv-tab thead th, .pv-tab thead td { position: sticky; z-index: 2; font-family: @anton; font-weight: 400; text-align: center; vertical-align: middle; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: 0.02em; }
+.pv-tab thead tr.grupos th, .pv-tab thead tr.grupos td { top: 0; height: 2em; padding: 2px 4px; color: #FFF; font-size: 1.05em; }
+.pv-tab thead tr.cab th { top: 2em; height: 2.5em; padding: 1px 2px; background: @cabCinza; color: @navyAba; line-height: 1.12; }
+.pv-tab thead tr.cab th span { display: block; overflow: hidden; text-overflow: ellipsis; }
+.pv-tab thead td.g-vazio { background: #FFF; }
+.pv-tab th.g-vend, .pv-tab th.g-mix { background: @navyAba; }
+.pv-tab th.g-fat { background: @teal; }
+.pv-tab th.g-cart { background: #FFF; color: @navyAba !important; box-shadow: inset 0 0 0 1.5px @navyAba; }
+.pv-tab th.g-cli { background: @laranja; }
+.pv-tab th.g-mix { border-left: 1px solid #FFF; }
+.pv-tab thead tr.cab th.rep { text-align: center; }
+.pv-tab thead tr.cab th.fam { color: #FFF; }
+.pv-tab thead tr.cab th.f-fb { background: @teal; }
+.pv-tab thead tr.cab th.f-fc { background: @amarelo; color: @navyAba; }
+.pv-tab thead tr.cab th.f-pt { background: #FFF; color: @navyAba; box-shadow: inset 0 -1.5px 0 @navyAba, inset 0 1.5px 0 @navyAba; }
+.pv-tab thead tr.cab th.f-ap { background: @laranja; }
+.pv-tab thead tr.cab th.f-ct { background: @ciano; color: @navyAba; }
+.pv-tab tbody td, .pv-tab tbody th { height: 1.95em; padding: 1px 2px; border-bottom: 1px solid @borda; background: #FFF; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; font-weight: 400; }
+.pv-tab tbody th.rep { text-align: left; font-weight: 700; font-size: max(15px, 0.9em); border-left: 1px solid @borda; }
+.pv-tab tbody td.uf { font-weight: 700; font-size: max(15px, 0.9em); }
+.pv-tab tbody td.sup { font-size: max(15px, 0.9em); padding: 1px 2px; }
+.pv-tab tbody td.mx { border-bottom: 0; font-size: max(15px, 0.9em); padding: 1px 1px; }
+.pv-tab tbody td.mx.vz { background: @rosa; }
+.pv-tab tbody td.mx.ini { border-left: 1px solid @borda; }
+.pv-tab tbody td.mx.fim { border-right: 1px solid @borda; }
+.pv-tab tbody tr:hover td:not(.vz), .pv-tab tbody tr:hover th { background: #F3F6FA; }
+.pv-tab td.msg { color: #4B5563; text-align: left; }
+.pv-status { flex: 0 0 auto; padding: 6px 2px 0; font-size: 15px; color: #4B5563; }
+.pv-status.erro { color: #B42318; }
+
+// menu Exportar
+.ex { position: relative; text-align: right; }
+.ex-menu { position: absolute; right: 0; top: calc(100% + 6px); background: #FFF; border: 1px solid #C9D3E0; border-radius: 10px; box-shadow: 0 10px 28px rgba(0,52,99,.22); padding: 14px 16px; text-align: left; width: 320px; }
+.ex-tit { font-size: 15px; color: #4B5563; margin-bottom: 8px; }
+.ex-op { display: block; font-size: 15px; color: #1B1B1B; padding: 6px 0; cursor: pointer; }
+.ex-op input { width: 18px; height: 18px; vertical-align: middle; margin: 0 6px 0 0; accent-color: @navy; }
+.ex-go { margin-top: 10px; width: 100%; font: 600 15px Arial, sans-serif; color: #FFF; background: @navy; border: 0; border-radius: 6px; padding: 10px 0; cursor: pointer; }
+.ex-msg { position: absolute; right: 0; top: calc(100% + 6px); text-align: left; font-size: 15px; line-height: 1.4; color: #1B6B3A; background: #FFF; padding: 8px 34px 8px 12px; border-radius: 8px; box-shadow: 0 4px 14px rgba(0,0,0,.16); width: max-content; max-width: min(520px, 90cqw); white-space: normal; }
+.ex-msg-x { position: absolute; right: 4px; top: 2px; background: none; border: 0; font-size: 22px; line-height: 1; color: #4B5563; cursor: pointer; padding: 2px 6px; }
+.ex-copiar { margin-top: 8px; width: 100%; font: 600 15px Arial, sans-serif; color: @navy; background: #FFF; border: 2px solid @navy; border-radius: 6px; padding: 8px 0; cursor: pointer; }
+.ex-copiar:hover { background: #EAF1FA; }
+.ex-msg.erro { color: #B42318; }
+.ex-menu ~ .ex-msg { display: none; }
+
+// painel do botão Filtros (popover dentro do visual)
+.fp { position: absolute; z-index: 20; top: clamp(48px, 5.8cqw, 80px); right: 1cqw; width: min(660px, calc(100% - 2cqw)); max-height: calc(100% - clamp(52px, 6.2cqw, 84px)); display: flex; flex-direction: column; background: #FFF; border: 1px solid #C9D3E0; border-radius: 12px; box-shadow: 0 14px 40px rgba(0,52,99,.25); font-size: 15px; color: #1B1B1B; overflow: hidden; }
+.fp button { font: inherit; }
+.fp-cab { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: @navy; color: #FFF; }
+.fp-tit { flex: 1; font-weight: 700; letter-spacing: 0.02em; }
+.fp-cab .fp-link { color: #FFF; }
+.fp-link { background: none; border: 0; padding: 4px 2px; color: #1465b3; text-decoration: underline; cursor: pointer; font-size: 15px; }
+.fp-x { background: none; border: 0; color: #FFF; font-size: 24px !important; line-height: 1; cursor: pointer; padding: 0 4px; }
+.fp-corpo { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: 190px 1fr; }
+.fp-nav { display: flex; flex-direction: column; border-right: 1px solid #E5E7EB; background: #F5F7FA; padding: 6px 0; overflow-y: auto; }
+.fp-campo { display: flex; justify-content: space-between; align-items: center; gap: 8px; text-align: left; background: none; border: 0; border-left: 4px solid transparent; padding: 9px 12px; cursor: pointer; color: #1B1B1B; }
+.fp-campo:hover { background: #EAF1FA; }
+.fp-campo.sel { background: #FFF; border-left-color: @navy; color: @navy; font-weight: 700; }
+.fp-q { min-width: 24px; padding: 1px 7px; border-radius: 11px; background: @navy; color: #FFF; font-weight: 700; text-align: center; }
+.fp-q.zero { background: transparent; }
+.fp-pane { display: flex; flex-direction: column; min-height: 0; padding: 12px 14px 8px; }
+.fp-busca { width: 100%; font: 15px Arial, sans-serif; padding: 8px 10px; border: 1px solid #9AA4B2; border-radius: 6px; color: #1B1B1B; }
+.fp-marcar { display: flex; gap: 16px; margin: 6px 0 4px; }
+.fp-lista { flex: 1 1 auto; min-height: 120px; max-height: 340px; overflow-y: auto; border: 1px solid #E5E7EB; border-radius: 6px; padding: 4px 0; }
+.fp-op { display: flex; align-items: center; gap: 8px; padding: 6px 10px; cursor: pointer; line-height: 1.25; }
+.fp-op:hover { background: #F2F6FB; }
+.fp-op input { width: 18px; height: 18px; flex: 0 0 auto; margin: 0; accent-color: @navy; }
+.fp-msg { padding: 10px; color: #4B5563; }
+.fp-info { margin-top: 6px; color: #4B5563; }
+.fp-rod { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-top: 1px solid #E5E7EB; }
+.fp-per { flex: 1; color: #4B5563; }
+.fp-aplicar { background: @navy; color: #FFF; padding: 8px 26px; }
+.fp-aplicar:hover { background: #0B2A4A; }
+
+
+
+// painel abaixo do topo
+.fp { top: 60px; max-height: calc(100% - 64px); }
+
+@container (max-width: 560px) {
+    .fp-corpo { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+    .fp-nav { flex-direction: row; flex-wrap: wrap; border-right: 0; border-bottom: 1px solid #E5E7EB; }
+    .fp-campo { border-left: 0; border-bottom: 3px solid transparent; padding: 6px 10px; }
+    .fp-campo.sel { border-bottom-color: @navy; }
+    .fp-q.zero { display: none; }
+    }
+@media (prefers-reduced-motion: reduce) { .pv * { transition: none !important; animation: none !important; } }

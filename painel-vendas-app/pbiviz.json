@@ -1,0 +1,25 @@
+{
+  "visual": {
+    "name": "painelVendasAppNovaForma",
+    "displayName": "Painel Vendas (Data do APP) (NovaForma)",
+    "guid": "painelVendasAppNovaForma2708501EF2524556A4A491FD34A03F8C",
+    "visualClassName": "Visual",
+    "version": "1.0.0.0",
+    "description": "Painel de Vendas (Data do APP): vendido, faturado, carteira, clientes e mix por representante (aba (Data APP) EVOLUCAO VENDA); botao Filtros (filtra a pagina) e exportacao para Excel igual a aba",
+    "supportUrl": "https://novaforma.example",
+    "gitHubUrl": ""
+  },
+  "apiVersion": "5.11.1",
+  "author": {
+    "name": "Gabriel",
+    "email": "bi@novaforma.example"
+  },
+  "assets": {
+    "icon": "assets/icon.png"
+  },
+  "externalJS": null,
+  "style": "style/visual.less",
+  "capabilities": "capabilities.json",
+  "dependencies": "dependencies.json",
+  "stringResources": []
+}
