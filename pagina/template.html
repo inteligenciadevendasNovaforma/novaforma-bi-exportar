@@ -18,7 +18,8 @@ main{width:min(100%,460px);background:#fff;border:1px solid #dbe3ee;border-radiu
 .st.erro{background:#b42318}
 h1{margin:0 0 8px;font-size:24px}p{color:#667085;line-height:1.55;margin:0 0 8px}
 .arq{display:flex;justify-content:space-between;gap:16px;padding:12px 14px;margin:20px 0 14px;text-align:left;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:10px}
-a.bt{display:block;padding:13px 18px;color:#fff;background:#0B2A4A;border-radius:10px;font-weight:700;text-decoration:none}
+.bt{display:block;width:100%;border:0;cursor:pointer;font:inherit;padding:13px 18px;color:#fff;background:#0B2A4A;border-radius:10px;font-weight:700;text-decoration:none}
+.bt:focus-visible{outline:3px solid #1465b3;outline-offset:2px}
 .nota{font-size:12.5px}.oculto{display:none}
 </style>
 </head>
@@ -43,6 +44,7 @@ a.bt{display:block;padding:13px 18px;color:#fff;background:#0B2A4A;border-radius
   <h1 id="tit">Preparando seu arquivo</h1>
   <p id="msg">O download começa automaticamente.</p>
   <div id="arq" class="arq oculto"><strong id="nome"></strong><span id="tam"></span></div>
+  <button id="cola" class="bt oculto" type="button">Colar dados</button>
   <a id="bt" class="bt oculto">Baixar arquivo</a>
   <p id="nota" class="nota oculto">O arquivo foi montado só neste navegador. Nada é guardado em servidor.</p>
  </div>

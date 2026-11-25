@@ -1,0 +1,125 @@
+// Medida de carga do visual "Pedidos Mês" v1.0 (tabela @Medida). Campo do visual: Representante = d_Representantes[Código do Vendedor].
+// Para cada representante (linha do visual) devolve uma linha de texto por cliente x família comercial com venda no mês,
+// separadas por quebra de linha (UNICHAR 10):
+//   codRep|representante|codCliente|razaoSocial|ordemFamilia|familia|vendido
+//   representante = d_Representantes[Chave do Vendedor] (nome sem o código, como na aba PEDIDOS MÊS)
+//   razaoSocial   = f_Faturamento[Cliente] (35 caracteres, como na aba); senão f_Carteira[Cliente]; senão d_Clientes[Nome]; senão o código
+//   ordemFamilia  = d_Familia[Ordem] (1 FORRO E ACESSÓRIOS, 2 FORRO COLORIDO, 3 PORTA PVC, 4 ACESSORIO PARA PISO, 5 CANTINHO)
+//   familia       = nome da Família Comercial do faturamento (igual à aba)
+//   vendido       = [Vendido Mês] do cliente na família (faturamento + carteira 'Não atribuído', 1º dia do mês da [Data Ref] até a
+//                   [Data Ref], sem tipos de devolução/bonificação, representante <> "#"). Zero entra (a aba mostra R$ 0,00).
+// Universo: todos os representantes com venda no contexto (inclui VENDA DIRETA, como a aba PEDIDOS MÊS).
+// No 1º representante (menor código entre os selecionados) vai o cabeçalho, depois de "~" (no fim da última linha):
+//   dataRef|anos|meses|dias|supervisoes|representantes|ufs|familias|materiais
+//   dataRef = yyyy-mm-dd; as 8 listas (botão Filtros) têm os valores separados por "^"; cada lista ignora o filtro do próprio campo.
+// Medidas reutilizadas: [Vendido Mês] e [Data Ref] (pasta Desempenho Vendas). Família: d_Familia (desconectada), como no painel.
+Pedidos Mês (visual) =
+VAR _cod = SELECTEDVALUE ( d_Representantes[Código do Vendedor] )
+VAR _rep =
+    SUBSTITUTE ( SUBSTITUTE ( SUBSTITUTE ( SELECTEDVALUE ( d_Representantes[Chave do Vendedor], SELECTEDVALUE ( d_Representantes[Nome do Rep] ) ), "|", " " ), "~", " " ), UNICHAR ( 10 ), " " )
+VAR _nl = UNICHAR ( 10 )
+// clientes x famílias com venda (o [Vendido Mês] já aplica período, regras e filtros da página)
+VAR _cli =
+    FILTER ( VALUES ( d_Clientes[Cliente - Chave] ), NOT ISBLANK ( [Vendido Mês] ) )
+VAR _comb =
+    FILTER (
+        ADDCOLUMNS (
+            CROSSJOIN ( _cli, VALUES ( d_Familia[Ordem] ) ),
+            "@v", CALCULATE ( [Vendido Mês] )
+        ),
+        NOT ISBLANK ( [@v] )
+    )
+VAR _linhas =
+    IF (
+        NOT ISBLANK ( _cod ) && _cod <> "#",
+        CONCATENATEX (
+            _comb,
+            VAR _c = d_Clientes[Cliente - Chave]
+            VAR _o = d_Familia[Ordem]
+            VAR _razao =
+                COALESCE (
+                    CALCULATE ( MAX ( f_Faturamento[Cliente] ), REMOVEFILTERS ( d_Calendario ), REMOVEFILTERS ( d_Representantes ) ),
+                    CALCULATE ( MAX ( f_Carteira[Cliente] ), REMOVEFILTERS ( d_Calendario ), REMOVEFILTERS ( d_Representantes ) ),
+                    CALCULATE ( MAX ( d_Clientes[Nome] ) ),
+                    _c
+                )
+            VAR _fam = SWITCH ( _o, 1, "FORRO E ACESSÓRIOS", 2, "FORRO COLORIDO", 3, "PORTA PVC", 4, "ACESSORIO PARA PISO", 5, "CANTINHO",
+                CALCULATE ( MIN ( d_Familia[Nome] ), REMOVEFILTERS ( d_Familia ), d_Familia[Ordem] = _o ) )
+            RETURN
+                _cod & "|" & _rep & "|" & _c & "|"
+                    & SUBSTITUTE ( SUBSTITUTE ( SUBSTITUTE ( _razao, "|", " " ), "~", " " ), _nl, " " ) & "|"
+                    & _o & "|" & _fam & "|" & FORMAT ( [@v], "0.00", "en-US" ),
+            _nl,
+            d_Clientes[Cliente - Chave], ASC,
+            d_Familia[Ordem], ASC
+        )
+    )
+VAR _primeiro =
+    CALCULATE (
+        MIN ( d_Representantes[Código do Vendedor] ),
+        ALLSELECTED ( d_Representantes ),
+        KEEPFILTERS ( d_Representantes[Código do Vendedor] <> "#" )
+    )
+VAR _cab =
+    IF (
+        _cod = _primeiro,
+        VAR _ref = [Data Ref]
+        VAR _anos =
+            CALCULATE ( CONCATENATEX ( VALUES ( d_Calendario[Ano] ), FORMAT ( d_Calendario[Ano], "0" ), "^", d_Calendario[Ano], ASC ), REMOVEFILTERS ( d_Calendario ) )
+        VAR _meses =
+            CALCULATE (
+                CONCATENATEX ( SUMMARIZE ( d_Calendario, d_Calendario[MêsNro], d_Calendario[Mês] ), d_Calendario[Mês], "^", d_Calendario[MêsNro], ASC ),
+                REMOVEFILTERS ( d_Calendario )
+            )
+        VAR _diasCal =
+            CALCULATE ( CONCATENATEX ( VALUES ( d_Calendario[Dia] ), FORMAT ( d_Calendario[Dia], "0" ), "^", d_Calendario[Dia], ASC ), REMOVEFILTERS ( d_Calendario ) )
+        VAR _sups =
+            CALCULATE (
+                CONCATENATEX ( VALUES ( d_Representantes[Supervisão] ), SUBSTITUTE ( d_Representantes[Supervisão], "^", " " ), "^", d_Representantes[Supervisão], ASC ),
+                REMOVEFILTERS ( d_Representantes ),
+                d_Representantes[Ativo SAP] = TRUE (),
+                d_Representantes[Código do Vendedor] <> "#",
+                NOT ISBLANK ( d_Representantes[Supervisão] )
+            )
+        // representantes: respeita Supervisão e UF escolhidas (cascata), ignora o próprio filtro de representante
+        VAR _reps =
+            CALCULATE (
+                CONCATENATEX ( VALUES ( d_Representantes[Nome do Rep] ), SUBSTITUTE ( d_Representantes[Nome do Rep], "^", " " ), "^", d_Representantes[Nome do Rep], ASC ),
+                REMOVEFILTERS ( d_Representantes[Nome do Rep] ),
+                REMOVEFILTERS ( d_Representantes[Chave do Vendedor] ),
+                REMOVEFILTERS ( d_Representantes[Código do Vendedor] ),
+                KEEPFILTERS ( d_Representantes[Ativo SAP] = TRUE () ),
+                KEEPFILTERS ( d_Representantes[Código do Vendedor] <> "#" )
+            )
+        VAR _ufs =
+            CALCULATE (
+                CONCATENATEX ( VALUES ( d_Representantes[UF] ), d_Representantes[UF], "^", d_Representantes[UF], ASC ),
+                REMOVEFILTERS ( d_Representantes ),
+                d_Representantes[Ativo SAP] = TRUE (),
+                d_Representantes[Código do Vendedor] <> "#",
+                NOT ISBLANK ( d_Representantes[UF] )
+            )
+        VAR _fams =
+            VAR _t =
+                DISTINCT (
+                    UNION (
+                        CALCULATETABLE ( VALUES ( f_Faturamento[Família] ), REMOVEFILTERS ( f_Faturamento ) ),
+                        CALCULATETABLE ( VALUES ( f_Carteira[Família] ), REMOVEFILTERS ( f_Carteira ) )
+                    )
+                )
+            RETURN CONCATENATEX ( FILTER ( _t, [Família] <> "" ), SUBSTITUTE ( SUBSTITUTE ( [Família], "^", " " ), "|", " " ), "^", [Família], ASC )
+        // materiais: respeita a Família escolhida (cascata), ignora o próprio filtro de material
+        VAR _mats =
+            VAR _t =
+                DISTINCT (
+                    UNION (
+                        CALCULATETABLE ( VALUES ( f_Faturamento[Material] ), REMOVEFILTERS ( f_Faturamento[Material] ), REMOVEFILTERS ( d_Calendario ), REMOVEFILTERS ( d_Representantes ) ),
+                        CALCULATETABLE ( VALUES ( f_Carteira[Material] ), REMOVEFILTERS ( f_Carteira[Material] ), REMOVEFILTERS ( d_Calendario ), REMOVEFILTERS ( d_Representantes ) )
+                    )
+                )
+            RETURN CONCATENATEX ( FILTER ( _t, [Material] <> "" ), SUBSTITUTE ( SUBSTITUTE ( SUBSTITUTE ( [Material], "^", " " ), "|", " " ), "~", " " ), "^", [Material], ASC )
+        RETURN
+            "~" & FORMAT ( _ref, "yyyy-mm-dd" ) & "|" & _anos & "|" & _meses & "|" & _diasCal & "|" & _sups & "|" & _reps & "|" & _ufs & "|" & _fams & "|" & _mats
+    )
+RETURN
+    IF ( NOT ISBLANK ( _linhas ) || NOT ISBLANK ( _cab ), _linhas & _cab )

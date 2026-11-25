@@ -5,6 +5,7 @@ import { gerarXlsxMes, EntradaMes, LinhaMes } from "../painel-mes/src/xlsxMes";
 import { gerarXlsxPedido, EntradaPedido, LinhaPedido } from "../pedido-diario/src/xlsxPedido";
 import { gerarXlsxReps, EntradaReps } from "../reps-sem-pedidos/src/xlsxReps";
 import { gerarXlsxMetas, EntradaMetas } from "../painel-metas/src/xlsxMetas";
+import { gerarXlsxPedidos, expandir, CargaPedidos } from "../pedidos-mes/src/xlsxPedidos";
 import { ANTON_B64 } from "./fonte";
 
 interface CargaDia extends Omit<EntradaDia, "imagens"> { tipo: "painelDia"; svgs: { svg: string; w: number; h: number }[]; }
@@ -15,6 +16,8 @@ interface CargaPedido { tipo: "pedidoDiario"; versao?: number; titulo: string; g
 interface CargaReps extends EntradaReps { tipo: "repsSemPedidos"; svgs?: undefined; }
 // Painel Metas v1.0: só células (aba igual à PAINEL METAS + aba Dados opcional), sem imagens
 interface CargaMetas extends EntradaMetas { tipo: "painelMetas"; versao?: number; svgs?: undefined; }
+// Pedidos Mês v1.0: formato compacto (tabelas de família e hierarquia rep > cliente > [família, centavos]); pelo link ou colado (k=cola)
+interface CargaPM extends CargaPedidos { svgs?: undefined; }
 interface Carga extends Omit<EntradaXlsx, "imagens"> { svgs: { svg: string; w: number; h: number }[]; }
 
 const $ = (s: string): HTMLElement => document.querySelector(s) as HTMLElement;
@@ -61,6 +64,33 @@ function entregar(bytes: Uint8Array, nome: string, mime: string): void {
     a.click();
 }
 
+// Pedidos Mês com tabela grande: o visual copia os dados ("NFPM1." + base64url do deflate-raw) e abre a página com k=cola.
+// A página pede para colar (Ctrl+V ou botão Colar dados) e monta o Excel com o texto colado. Nada sai do navegador.
+const PREFIXO_COLA = "NFPM1.";
+function esperarCola(nome: string, mime: string, linhas: string): void {
+    $("#st").textContent = "⇩"; $("#tit").textContent = "Cole os dados do painel";
+    $("#msg").textContent = "A tabela" + (linhas ? " (" + Number(linhas).toLocaleString("pt-BR") + " linhas)" : "") + " é grande demais para o link e foi copiada pelo painel. Clique em Colar dados ou pressione Ctrl+V nesta página.";
+    const bt = $("#cola") as HTMLButtonElement;
+    bt.classList.remove("oculto");
+    let feito = false;
+    const usar = async (texto: string): Promise<void> => {
+        if (feito) { return; }
+        const t = (texto || "").trim();
+        if (t.indexOf(PREFIXO_COLA) !== 0) { erro("O texto colado não veio do painel. Volte ao Power BI, clique em Exportar > Baixar Excel de novo e cole aqui sem copiar outra coisa antes."); bt.classList.remove("oculto"); return; }
+        feito = true; bt.classList.add("oculto");
+        try {
+            const carga = JSON.parse(new TextDecoder().decode(await inflar(b64u(t.slice(PREFIXO_COLA.length))))) as CargaPedidos;
+            entregar(gerarXlsxPedidos(expandir(carga)), nome, mime);
+        } catch (e) { feito = false; erro("Os dados colados estão incompletos. " + (e instanceof Error ? e.message : "")); }
+    };
+    document.addEventListener("paste", ev => { ev.preventDefault(); void usar(ev.clipboardData ? ev.clipboardData.getData("text") : ""); });
+    bt.addEventListener("click", async () => {
+        try { await usar(await navigator.clipboard.readText()); }
+        catch { $("#msg").textContent = "O navegador não deixou ler a área de transferência. Pressione Ctrl+V nesta página."; }
+    });
+    bt.focus();
+}
+
 (async () => {
     const p = new URLSearchParams(location.hash.slice(1));
     const nome = p.get("n") || "painel.xlsx";
@@ -69,12 +99,14 @@ function entregar(bytes: Uint8Array, nome: string, mime: string): void {
         const j = p.get("j"), d = p.get("d");
         if (j) {
             const bruto = p.get("c") === "1" ? await inflar(b64u(j)) : b64u(j);
-            const carga = JSON.parse(new TextDecoder().decode(bruto)) as Carga | CargaDia | CargaMes | CargaPedido | CargaReps | CargaMetas;
+            const carga = JSON.parse(new TextDecoder().decode(bruto)) as Carga | CargaDia | CargaMes | CargaPedido | CargaReps | CargaMetas | CargaPM;
             const png = async (g: { svg: string; w: number; h: number }) => ({ png: await svgParaPng(g.svg, g.w, g.h), w: g.w, h: g.h });
             const imagens = [];
-            const semImagens = (carga as CargaPedido).tipo === "pedidoDiario" || (carga as CargaReps).tipo === "repsSemPedidos" || (carga as CargaMetas).tipo === "painelMetas";
+            const semImagens = (carga as CargaPedidos).tipo === "pedidosMes" || (carga as CargaPedido).tipo === "pedidoDiario" || (carga as CargaReps).tipo === "repsSemPedidos" || (carga as CargaMetas).tipo === "painelMetas";
             for (const g of semImagens ? [] : carga.svgs || []) { imagens.push(await png(g)); }
-            if ((carga as CargaMetas).tipo === "painelMetas") {
+            if ((carga as CargaPedidos).tipo === "pedidosMes") {
+                entregar(gerarXlsxPedidos(expandir(carga as CargaPedidos)), nome, mime);
+            } else if ((carga as CargaMetas).tipo === "painelMetas") {
                 const m = carga as CargaMetas;
                 entregar(gerarXlsxMetas({ titulo: m.titulo, atualizacao: m.atualizacao || "", geradoEm: m.geradoEm, periodo: m.periodo || "", filtros: m.filtros || "", blocos: m.blocos || [], opcoes: { dados: !!(m.opcoes && m.opcoes.dados) } }), nome, mime);
             } else if ((carga as CargaReps).tipo === "repsSemPedidos") {
@@ -90,9 +122,11 @@ function entregar(bytes: Uint8Array, nome: string, mime: string): void {
                 entregar(gerarXlsxPedido({ titulo: m.titulo, geradoEm: m.geradoEm, periodo: m.periodo || "", filtros: m.filtros || "", dias: m.dias || [], linhas: m.linhas || [], opcoes: { tabela: !!op.tabela, dados: !!op.dados } }), nome, mime);
             } else if ((carga as CargaDia).tipo === "painelDia") { entregar(gerarXlsxDia({ ...(carga as CargaDia), imagens }), nome, mime); }
             else { entregar(gerarXlsx({ ...(carga as Carga), imagens }), nome, mime); }
+        } else if (p.get("k") === "cola") {
+            esperarCola(nome, mime, p.get("q") || "");
         } else if (d) {
             const b = b64u(d);
             entregar(p.get("c") === "1" ? await inflar(b) : b, nome, p.get("t") || mime);
-        } else { erro("Nenhum arquivo recebido (página v2.2; o endereço chegou com " + location.hash.length + " caracteres depois do #). Abra esta página pelo botão Exportar do painel."); }
+        } else { erro("Nenhum arquivo recebido (página v2.3; o endereço chegou com " + location.hash.length + " caracteres depois do #). Abra esta página pelo botão Exportar do painel."); }
     } catch (e) { erro("O arquivo chegou incompleto ou passou do limite do endereço. " + (e instanceof Error ? e.message : "")); }
 })();
