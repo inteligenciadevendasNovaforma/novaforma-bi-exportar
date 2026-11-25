@@ -4,7 +4,7 @@
     "displayName": "Painel com copiar e exportar (teste)",
     "guid": "painelCopiarExcel1A2B3C4D5E6F708192A3B4C5D6E7F801",
     "visualClassName": "Visual",
-    "version": "1.5.0.0",
+    "version": "1.5.1.0",
     "description": "Painel único com botão Exportar: abre uma página de download que entrega o Excel (cards, gráficos, matriz, dados)",
     "supportUrl": "https://novaforma.example",
     "gitHubUrl": ""

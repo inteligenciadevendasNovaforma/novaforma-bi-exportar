@@ -31,7 +31,7 @@ class BotoesCard extends Card {
     incluirMatriz = new formattingSettings.ToggleSwitch({ name: "incluirMatriz", displayName: "Padrão: incluir matriz", value: true });
     incluirDados = new formattingSettings.ToggleSwitch({ name: "incluirDados", displayName: "Padrão: aba de dados brutos", value: false });
     usarPagina = new formattingSettings.ToggleSwitch({ name: "usarPagina", displayName: "Baixar pela página de download (link)", value: true });
-    urlPagina = new formattingSettings.TextInput({ name: "urlPagina", displayName: "Endereço da página de download", value: "https://gabrielpms2001.github.io/novaforma-exportar-bi/download-page/", placeholder: "https://.../download-page/" });
+    urlPagina = new formattingSettings.TextInput({ name: "urlPagina", displayName: "Endereço da página de download", value: "https://inteligenciadevendasnovaforma.github.io/novaforma-bi-exportar/download-page/", placeholder: "https://.../download-page/" });
     slices = [this.mostrarBotao, this.nomeArquivo, this.usarPagina, this.urlPagina, this.incluirCards, this.incluirGraficos, this.incluirMatriz, this.incluirDados];
 }
 
