@@ -4,6 +4,7 @@ import { gerarXlsxDia, EntradaDia } from "../painel-dia/src/xlsxDia";
 import { gerarXlsxMes, EntradaMes, LinhaMes } from "../painel-mes/src/xlsxMes";
 import { gerarXlsxPedido, EntradaPedido, LinhaPedido } from "../pedido-diario/src/xlsxPedido";
 import { gerarXlsxReps, EntradaReps } from "../reps-sem-pedidos/src/xlsxReps";
+import { gerarXlsxMetas, EntradaMetas } from "../painel-metas/src/xlsxMetas";
 import { ANTON_B64 } from "./fonte";
 
 interface CargaDia extends Omit<EntradaDia, "imagens"> { tipo: "painelDia"; svgs: { svg: string; w: number; h: number }[]; }
@@ -12,6 +13,8 @@ interface CargaMes { tipo: "painelMes"; titulo: string; geradoEm: string; period
 // Pedido Diário: v2 (oficial) manda periodo/filtros e só tabela/dados; v1 mandava card/svgs (ignorados: o Excel sai sem imagens/topo)
 interface CargaPedido { tipo: "pedidoDiario"; versao?: number; titulo: string; geradoEm: string; periodo?: string; filtros?: string; dias: number[]; linhas: LinhaPedido[]; opcoes: EntradaPedido["opcoes"]; card?: unknown; svgs?: { svg: string; w: number; h: number }[]; }
 interface CargaReps extends EntradaReps { tipo: "repsSemPedidos"; svgs?: undefined; }
+// Painel Metas v1.0: só células (aba igual à PAINEL METAS + aba Dados opcional), sem imagens
+interface CargaMetas extends EntradaMetas { tipo: "painelMetas"; versao?: number; svgs?: undefined; }
 interface Carga extends Omit<EntradaXlsx, "imagens"> { svgs: { svg: string; w: number; h: number }[]; }
 
 const $ = (s: string): HTMLElement => document.querySelector(s) as HTMLElement;
@@ -66,12 +69,15 @@ function entregar(bytes: Uint8Array, nome: string, mime: string): void {
         const j = p.get("j"), d = p.get("d");
         if (j) {
             const bruto = p.get("c") === "1" ? await inflar(b64u(j)) : b64u(j);
-            const carga = JSON.parse(new TextDecoder().decode(bruto)) as Carga | CargaDia | CargaMes | CargaPedido | CargaReps;
+            const carga = JSON.parse(new TextDecoder().decode(bruto)) as Carga | CargaDia | CargaMes | CargaPedido | CargaReps | CargaMetas;
             const png = async (g: { svg: string; w: number; h: number }) => ({ png: await svgParaPng(g.svg, g.w, g.h), w: g.w, h: g.h });
             const imagens = [];
-            const semImagens = (carga as CargaPedido).tipo === "pedidoDiario" || (carga as CargaReps).tipo === "repsSemPedidos";
+            const semImagens = (carga as CargaPedido).tipo === "pedidoDiario" || (carga as CargaReps).tipo === "repsSemPedidos" || (carga as CargaMetas).tipo === "painelMetas";
             for (const g of semImagens ? [] : carga.svgs || []) { imagens.push(await png(g)); }
-            if ((carga as CargaReps).tipo === "repsSemPedidos") {
+            if ((carga as CargaMetas).tipo === "painelMetas") {
+                const m = carga as CargaMetas;
+                entregar(gerarXlsxMetas({ titulo: m.titulo, atualizacao: m.atualizacao || "", geradoEm: m.geradoEm, periodo: m.periodo || "", filtros: m.filtros || "", blocos: m.blocos || [], opcoes: { dados: !!(m.opcoes && m.opcoes.dados) } }), nome, mime);
+            } else if ((carga as CargaReps).tipo === "repsSemPedidos") {
                 const m = carga as CargaReps;
                 entregar(gerarXlsxReps({ titulo: m.titulo, faixa: m.faixa, geradoEm: m.geradoEm, periodo: m.periodo, filtros: m.filtros, linhas: m.linhas, opcoes: m.opcoes }), nome, mime);
             } else if ((carga as CargaMes).tipo === "painelMes") {
@@ -87,6 +93,6 @@ function entregar(bytes: Uint8Array, nome: string, mime: string): void {
         } else if (d) {
             const b = b64u(d);
             entregar(p.get("c") === "1" ? await inflar(b) : b, nome, p.get("t") || mime);
-        } else { erro("Nenhum arquivo recebido (página v2.1; o endereço chegou com " + location.hash.length + " caracteres depois do #). Abra esta página pelo botão Exportar do painel."); }
+        } else { erro("Nenhum arquivo recebido (página v2.2; o endereço chegou com " + location.hash.length + " caracteres depois do #). Abra esta página pelo botão Exportar do painel."); }
     } catch (e) { erro("O arquivo chegou incompleto ou passou do limite do endereço. " + (e instanceof Error ? e.message : "")); }
 })();

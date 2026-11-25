@@ -1,0 +1,202 @@
+// Medida de carga do visual "Painel Metas" v1.0 (tabela @Medida). Uma única linha de texto; registros separados por quebra de linha (UNICHAR 10).
+// 1ª linha:  V|1~atualizacao|dataRef|anos|meses|dias|supervisoes|representantes|ufs|familias|materiais
+//   atualizacao = yyyy-mm-dd hh:nn:ss ('Atualização'[Última atualização], horário de Brasília); dataRef = yyyy-mm-dd ([Data Ref]).
+//   As 8 listas (botão Filtros) têm os valores separados por "^"; cada lista ignora o filtro do próprio campo.
+// Depois, para cada bloco (u = "*" total do contexto; depois uma sigla por UF do cliente, d_Clientes[UF], com meta ou movimento):
+//   B|u|objetivoClientes|clientesV|clientesF|pctF|clientesCarteira|tendenciaFC|prazoV|notaMix
+//   F|u|ordem|familia|objetivo|vendidoMes|vendidoOntem|tendencia|faturado|objXFat|carteira|fatMaisCart|clienteMes|clientesOntem|clientesFaturados|clientesCarteira|dias
+//      (ordem 0 / familia TOTAL = total do bloco; dias = "dia:valor" separados por vírgula, só dias com valor <> 0)
+//   C|u|dias  (clientes distintos por dia, "dia:clientes")
+// Medidas reutilizadas (pasta Desempenho Vendas\5 Painel Metas): Objetivo Clientes, Clientes (V), Clientes (F), % Clientes (F), Clientes Carteira,
+//   Tendência (F+C), Prazo (V), Nota MIX (V), Objetivo (R$), Vendido Mês, Vendido Ontem, Tendência (R$), Faturado Mês, Obj x Fat, Carteira (R$),
+//   Faturado + Carteira, CLI Ontem, Data Ref, Faturamento, Valor em Carteira.
+// Vendido dia x dia / Clientes por dia: mesma regra de [Vendido Data] / [Clientes Data] (= regra de [Vendido Mês] / [Clientes (V)]), mas no mês da [Data Ref]
+//   (1º dia até a Data Ref) em vez do flag "ATUAL" do BW, para acompanhar o botão Filtros (Dia/Mês/Ano). No mês atual dá o mesmo valor.
+// Família: d_Familia (desconectada, como nas medidas do painel). UF do bloco: d_Clientes[UF] (como Objetivo Clientes / Objetivo (R$)).
+Painel Metas (visual) =
+VAR _ref = [Data Ref]
+VAR _ini = DATE ( YEAR ( _ref ), MONTH ( _ref ), 1 )
+VAR _exc = { "YREB", "YROB", "YBON", "YAMG", "YDC1", "YDC2", "YROS", "REB", "YR1T" }
+VAR _excFat = { "YREB", "YBON", "YAMG", "YDC1", "YDC2", "YROS", "REB", "YR1T" }
+VAR _nl = UNICHAR ( 10 )
+VAR _ufsCtx = VALUES ( d_Clientes[UF] )
+VAR _famsCtx = VALUES ( d_Familia[Ordem] )
+// UFs com meta ou movimento no contexto (siglas de 2 letras)
+VAR _ufs =
+    FILTER (
+        _ufsCtx,
+        LEN ( d_Clientes[UF] ) = 2
+            && UNICODE ( d_Clientes[UF] ) >= 65 && UNICODE ( d_Clientes[UF] ) <= 90
+            && CALCULATE (
+                NOT ISBLANK ( [Objetivo Clientes] ) || NOT ISBLANK ( [Objetivo (R$)] )
+                    || NOT ISBLANK ( [Vendido Mês] ) || NOT ISBLANK ( [Faturado Mês] ) || NOT ISBLANK ( [Carteira (R$)] )
+            )
+    )
+VAR _blocos = UNION ( ROW ( "u", "*" ), SELECTCOLUMNS ( _ufs, "u", d_Clientes[UF] ) )
+VAR _famLinhas = UNION ( ROW ( "o", 0 ), SELECTCOLUMNS ( _famsCtx, "o", d_Familia[Ordem] ) )
+VAR _corpo =
+    CONCATENATEX (
+        _blocos,
+        VAR _u = [u]
+        RETURN
+            CALCULATE (
+                VAR _kpi =
+                    "B|" & _u & "|"
+                        & FORMAT ( [Objetivo Clientes], "0.0000", "en-US" ) & "|"
+                        & FORMAT ( [Clientes (V)], "0", "en-US" ) & "|"
+                        & FORMAT ( [Clientes (F)], "0", "en-US" ) & "|"
+                        & FORMAT ( [% Clientes (F)], "0.000000", "en-US" ) & "|"
+                        & FORMAT ( [Clientes Carteira], "0", "en-US" ) & "|"
+                        & FORMAT ( [Tendência (F+C)], "0", "en-US" ) & "|"
+                        & FORMAT ( [Prazo (V)], "0.0000", "en-US" ) & "|"
+                        & FORMAT ( [Nota MIX (V)], "0.0", "en-US" )
+                VAR _fams =
+                    CONCATENATEX (
+                        _famLinhas,
+                        VAR _o = [o]
+                        RETURN
+                            CALCULATE (
+                                VAR _nome = IF ( _o = 0, "TOTAL", SUBSTITUTE ( SUBSTITUTE ( MIN ( d_Familia[Nome] ), "|", " " ), "~", " " ) )
+                                VAR _sig = VALUES ( d_Familia[Sigla] )
+                                VAR _famFat =
+                                    SELECTCOLUMNS ( _sig, "F",
+                                        SWITCH ( d_Familia[Sigla], "FB", "FORRO E ACESSÓRIOS", "FC", "FORRO COLORIDO", "CT", "CANTINHO", "PT", "PORTA PVC", "AP", "ACESSORIO PARA PISO" ) )
+                                VAR _famCart =
+                                    SELECTCOLUMNS ( _sig, "F",
+                                        SWITCH ( d_Familia[Sigla], "FB", "FORRO E ACESS. BR", "FC", "FORRO E ACESS. COLOR", "CT", "CANTINHO", "PT", "PORTA PVC", "AP", "ACESS. PARA PISO" ) )
+                                // vendido por dia (regra de [Vendido Mês] / [Vendido Data], mês da Data Ref)
+                                VAR _tf =
+                                    CALCULATETABLE (
+                                        ADDCOLUMNS ( SUMMARIZE ( f_Faturamento, f_Faturamento[Data entrada] ), "@v", [Faturamento] ),
+                                        REMOVEFILTERS ( d_Calendario ),
+                                        f_Faturamento[Data entrada] >= _ini && f_Faturamento[Data entrada] <= _ref,
+                                        NOT ( f_Faturamento[Tp.doc.faturamento] IN _excFat ),
+                                        KEEPFILTERS ( f_Faturamento[Nome Vendedor] <> "#" ),
+                                        KEEPFILTERS ( f_Faturamento[Família Comercial] IN _famFat )
+                                    )
+                                VAR _tc =
+                                    CALCULATETABLE (
+                                        ADDCOLUMNS ( SUMMARIZE ( f_Carteira, f_Carteira[Data entrada] ), "@v", [Valor em Carteira] ),
+                                        REMOVEFILTERS ( d_Calendario ),
+                                        f_Carteira[Data entrada] >= _ini && f_Carteira[Data entrada] <= _ref,
+                                        f_Carteira[Motivo de recusa] = "Não atribuído",
+                                        NOT ( f_Carteira[Tipo doc.venda] IN _exc ),
+                                        KEEPFILTERS ( f_Carteira[Nome Vendedor] <> "#" ),
+                                        KEEPFILTERS ( f_Carteira[Família] IN _famCart )
+                                    )
+                                VAR _td =
+                                    UNION (
+                                        SELECTCOLUMNS ( _tf, "d", DAY ( f_Faturamento[Data entrada] ), "v", [@v] ),
+                                        SELECTCOLUMNS ( _tc, "d", DAY ( f_Carteira[Data entrada] ), "v", [@v] )
+                                    )
+                                VAR _g = FILTER ( GROUPBY ( _td, [d], "s", SUMX ( CURRENTGROUP (), [v] ) ), ROUND ( [s], 2 ) <> 0 )
+                                VAR _dias = CONCATENATEX ( _g, [d] & ":" & FORMAT ( [s], "0.00", "en-US" ), ",", [d], ASC )
+                                RETURN
+                                    "F|" & _u & "|" & _o & "|" & _nome & "|"
+                                        & FORMAT ( [Objetivo (R$)], "0.00", "en-US" ) & "|"
+                                        & FORMAT ( [Vendido Mês], "0.00", "en-US" ) & "|"
+                                        & FORMAT ( [Vendido Ontem], "0.00", "en-US" ) & "|"
+                                        & FORMAT ( [Tendência (R$)], "0.00", "en-US" ) & "|"
+                                        & FORMAT ( [Faturado Mês], "0.00", "en-US" ) & "|"
+                                        & FORMAT ( [Obj x Fat], "0.000000", "en-US" ) & "|"
+                                        & FORMAT ( [Carteira (R$)], "0.00", "en-US" ) & "|"
+                                        & FORMAT ( [Faturado + Carteira], "0.00", "en-US" ) & "|"
+                                        & FORMAT ( [Clientes (V)], "0", "en-US" ) & "|"
+                                        & FORMAT ( [CLI Ontem], "0", "en-US" ) & "|"
+                                        & FORMAT ( [Clientes (F)], "0", "en-US" ) & "|"
+                                        & FORMAT ( [Clientes Carteira], "0", "en-US" ) & "|"
+                                        & _dias,
+                                // ordem 0 = total do bloco: todas as famílias do contexto (as medidas tratam 5 siglas como "sem filtro")
+                                KEEPFILTERS ( TREATAS ( FILTER ( _famsCtx, _o = 0 || d_Familia[Ordem] = _o ), d_Familia[Ordem] ) )
+                            ),
+                        _nl,
+                        [o], ASC
+                    )
+                // clientes distintos por dia (regra de [Clientes (V)] / [Clientes Data], mês da Data Ref)
+                VAR _sigB = VALUES ( d_Familia[Sigla] )
+                VAR _famFatB =
+                    SELECTCOLUMNS ( _sigB, "F",
+                        SWITCH ( d_Familia[Sigla], "FB", "FORRO E ACESSÓRIOS", "FC", "FORRO COLORIDO", "CT", "CANTINHO", "PT", "PORTA PVC", "AP", "ACESSORIO PARA PISO" ) )
+                VAR _famCartB =
+                    SELECTCOLUMNS ( _sigB, "F",
+                        SWITCH ( d_Familia[Sigla], "FB", "FORRO E ACESS. BR", "FC", "FORRO E ACESS. COLOR", "CT", "CANTINHO", "PT", "PORTA PVC", "AP", "ACESS. PARA PISO" ) )
+                VAR _pc =
+                    DISTINCT (
+                        UNION (
+                            CALCULATETABLE (
+                                SELECTCOLUMNS ( f_Faturamento, "c", f_Faturamento[Cod. Cliente], "d", DAY ( f_Faturamento[Data entrada] ) ),
+                                REMOVEFILTERS ( d_Calendario ),
+                                f_Faturamento[Data entrada] >= _ini && f_Faturamento[Data entrada] <= _ref,
+                                NOT ( f_Faturamento[Tp.doc.faturamento] IN _exc ),
+                                KEEPFILTERS ( f_Faturamento[Família Comercial] IN _famFatB )
+                            ),
+                            CALCULATETABLE (
+                                SELECTCOLUMNS ( f_Carteira, "c", f_Carteira[Cod. Cliente], "d", DAY ( f_Carteira[Data entrada] ) ),
+                                REMOVEFILTERS ( d_Calendario ),
+                                f_Carteira[Data entrada] >= _ini && f_Carteira[Data entrada] <= _ref,
+                                f_Carteira[Motivo de recusa] = "Não atribuído",
+                                NOT ( f_Carteira[Tipo doc.venda] IN _exc ),
+                                KEEPFILTERS ( f_Carteira[Família] IN _famCartB )
+                            )
+                        )
+                    )
+                VAR _cd = CONCATENATEX ( GROUPBY ( _pc, [d], "n", COUNTX ( CURRENTGROUP (), 1 ) ), [d] & ":" & [n], ",", [d], ASC )
+                RETURN
+                    _kpi & _nl & _fams & _nl & "C|" & _u & "|" & _cd,
+                // u = "*": total do contexto (todas as UFs do contexto; Objetivo soma as metas das UFs, igual ao total sem filtro)
+                KEEPFILTERS ( TREATAS ( FILTER ( _ufsCtx, _u = "*" || d_Clientes[UF] = _u ), d_Clientes[UF] ) )
+            ),
+        _nl,
+        IF ( [u] = "*", "", [u] ), ASC
+    )
+// listas para o botão Filtros (contexto do visual = filtros da página + filtros aplicados pelo próprio visual)
+VAR _atu = MAX ( 'Atualização'[Última atualização] )
+VAR _anos =
+    CALCULATE ( CONCATENATEX ( VALUES ( d_Calendario[Ano] ), FORMAT ( d_Calendario[Ano], "0" ), "^", d_Calendario[Ano], ASC ), REMOVEFILTERS ( d_Calendario ) )
+VAR _meses =
+    CALCULATE (
+        CONCATENATEX ( SUMMARIZE ( d_Calendario, d_Calendario[MêsNro], d_Calendario[Mês] ), d_Calendario[Mês], "^", d_Calendario[MêsNro], ASC ),
+        REMOVEFILTERS ( d_Calendario )
+    )
+VAR _diasCal =
+    CALCULATE ( CONCATENATEX ( VALUES ( d_Calendario[Dia] ), FORMAT ( d_Calendario[Dia], "0" ), "^", d_Calendario[Dia], ASC ), REMOVEFILTERS ( d_Calendario ) )
+VAR _sups =
+    CALCULATE (
+        CONCATENATEX (
+            FILTER ( VALUES ( 'd_Supervisão'[Supervisão] ), 'd_Supervisão'[Supervisão] <> "" && 'd_Supervisão'[Supervisão] <> "Não atribuído" ),
+            SUBSTITUTE ( 'd_Supervisão'[Supervisão], "^", " " ), "^", 'd_Supervisão'[Supervisão], ASC
+        ),
+        REMOVEFILTERS ( 'd_Supervisão' )
+    )
+VAR _reps =
+    CALCULATE (
+        CONCATENATEX ( VALUES ( d_Representantes[Nome do Rep] ), SUBSTITUTE ( d_Representantes[Nome do Rep], "^", " " ), "^", d_Representantes[Nome do Rep], ASC ),
+        REMOVEFILTERS ( d_Representantes[Nome do Rep] ),
+        REMOVEFILTERS ( d_Representantes[Chave do Vendedor] ),
+        KEEPFILTERS ( d_Representantes[Ativo SAP] = TRUE () ),
+        KEEPFILTERS ( d_Representantes[Código do Vendedor] <> "#" ),
+        KEEPFILTERS ( NOT CONTAINSSTRING ( d_Representantes[Nome do Rep], "VENDA" ) )
+    )
+VAR _ufsLista =
+    CALCULATE (
+        CONCATENATEX (
+            FILTER ( VALUES ( d_Clientes[UF] ), LEN ( d_Clientes[UF] ) = 2 && UNICODE ( d_Clientes[UF] ) >= 65 && UNICODE ( d_Clientes[UF] ) <= 90 ),
+            d_Clientes[UF], "^", d_Clientes[UF], ASC
+        ),
+        REMOVEFILTERS ( d_Clientes )
+    )
+VAR _famsLista =
+    CALCULATE ( CONCATENATEX ( VALUES ( d_Familia[Nome] ), SUBSTITUTE ( d_Familia[Nome], "^", " " ), "^", CALCULATE ( MIN ( d_Familia[Ordem] ) ), ASC ), REMOVEFILTERS ( d_Familia ) )
+VAR _mats =
+    VAR _t =
+        DISTINCT (
+            UNION (
+                CALCULATETABLE ( VALUES ( f_Faturamento[Material] ), REMOVEFILTERS ( f_Faturamento[Material] ), REMOVEFILTERS ( d_Calendario ), REMOVEFILTERS ( d_Representantes ) ),
+                CALCULATETABLE ( VALUES ( f_Carteira[Material] ), REMOVEFILTERS ( f_Carteira[Material] ), REMOVEFILTERS ( d_Calendario ), REMOVEFILTERS ( d_Representantes ) )
+            )
+        )
+    RETURN CONCATENATEX ( FILTER ( _t, [Material] <> "" ), SUBSTITUTE ( SUBSTITUTE ( SUBSTITUTE ( [Material], "^", " " ), "|", " " ), "~", " " ), "^", [Material], ASC )
+RETURN
+    "V|1~" & FORMAT ( _atu, "yyyy-mm-dd hh:nn:ss" ) & "|" & FORMAT ( _ref, "yyyy-mm-dd" ) & "|" & _anos & "|" & _meses & "|" & _diasCal & "|"
+        & SUBSTITUTE ( _sups, "|", " " ) & "|" & SUBSTITUTE ( _reps, "|", " " ) & "|" & _ufsLista & "|" & SUBSTITUTE ( _famsLista, "|", " " ) & "|" & _mats
+        & _nl & _corpo

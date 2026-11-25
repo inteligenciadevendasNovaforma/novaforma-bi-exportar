@@ -20,4 +20,4 @@ O endereço é configurado em cada visual, em Formatar > Exportação > "Endere�
 - `download-page/` página publicada (um único `index.html`, já com o código embutido)
 - `pagina/` código-fonte da página (`ponte.ts`, `template.html`, fonte). Para gerar de novo: `pagina/build.sh`
 - `dist/` visuais empacotados (`.pbiviz`)
-- `painel-dia/`, `painel-mes/`, `pedido-diario/`, `reps-sem-pedidos/`, `visual/` código-fonte de cada visual (`npm i && npx pbiviz package`) e a medida DAX
+- `painel-dia/`, `painel-mes/`, `painel-metas/`, `pedido-diario/`, `reps-sem-pedidos/`, `visual/` código-fonte de cada visual (`npm i && npx pbiviz package`) e a medida DAX
