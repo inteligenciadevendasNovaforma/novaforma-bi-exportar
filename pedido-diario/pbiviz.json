@@ -4,7 +4,7 @@
     "displayName": "Pedido Diário (NovaForma)",
     "guid": "pdDiario3F8CA164",
     "visualClassName": "Visual",
-    "version": "2.0.2.0",
+    "version": "2.0.3.0",
     "description": "Pedido Diario: matriz de clientes positivados por dia do mes por representante, com botao Filtros que filtra a pagina e exportacao para Excel",
     "supportUrl": "https://novaforma.example",
     "gitHubUrl": ""

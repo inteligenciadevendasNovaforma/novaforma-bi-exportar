@@ -63,7 +63,7 @@ export class Visual implements IVisual {
         this.raiz.addEventListener("keydown", (ev: KeyboardEvent) => {
             if (ev.key !== "Escape") { return; }
             if (this.filtros.popAberto) { this.filtros.fechar(); ev.stopPropagation(); }
-            else if (this.menuAberto) { this.menuAberto = false; this.desenhar(); }
+            else if (this.menuAberto) { this.limparAviso(); this.menuAberto = false; this.desenhar(); }
         });
     }
 
@@ -238,6 +238,9 @@ export class Visual implements IVisual {
     private menuAberto = false;
     private aviso = "";
     private avisoErro = false;
+    private avisoSaindo = false;
+    private tAviso: number | undefined;
+    private tFade: number | undefined;
 
     private menuExportar(): HTMLElement {
         const cx = el("div", "ex");
@@ -245,7 +248,7 @@ export class Visual implements IVisual {
         btn.type = "button";
         btn.setAttribute("aria-haspopup", "true");
         btn.setAttribute("aria-expanded", String(this.menuAberto));
-        btn.addEventListener("click", () => { this.menuAberto = !this.menuAberto; if (this.menuAberto) { this.filtros.popAberto = false; } this.desenhar(); });
+        btn.addEventListener("click", () => { this.limparAviso(); this.menuAberto = !this.menuAberto; if (this.menuAberto) { this.filtros.popAberto = false; } this.desenhar(); });
         cx.appendChild(btn);
         if (this.menuAberto) {
             const m = el("div", "ex-menu");
@@ -263,11 +266,36 @@ export class Visual implements IVisual {
             cx.appendChild(m);
         }
         // aviso: dentro do menu quando ele está aberto; senão logo abaixo do botão (por cima do conteúdo, como um aviso)
-        if (this.aviso) { (cx.querySelector(".ex-menu") || cx).appendChild(el("div", "ex-msg" + (this.avisoErro ? " erro" : ""), this.aviso)); }
+        if (this.aviso) { (cx.querySelector(".ex-menu") || cx).appendChild(el("div", "ex-msg" + (this.avisoErro ? " erro" : "") + (this.avisoSaindo ? " sai" : ""), this.aviso)); }
         return cx;
     }
 
-    private mostrar(t: string, erro = false): void { this.aviso = t; this.avisoErro = erro; this.desenhar(); }
+    // mensagem de status: some sozinha (6 s; 10 s se for erro), com fade curto; o timer reinicia a cada mensagem
+    private limparAviso(): void {
+        if (this.tAviso !== undefined) { window.clearTimeout(this.tAviso); this.tAviso = undefined; }
+        if (this.tFade !== undefined) { window.clearTimeout(this.tFade); this.tFade = undefined; }
+        this.aviso = ""; this.avisoErro = false; this.avisoSaindo = false;
+    }
+
+    private mostrar(t: string, erro = false): void {
+        this.limparAviso();
+        this.aviso = t; this.avisoErro = erro;
+        this.desenhar();
+        this.tAviso = window.setTimeout(() => {
+            this.tAviso = undefined;
+            this.avisoSaindo = true;
+            const m = this.raiz.querySelector(".ex-msg");
+            if (m) { m.classList.add("sai"); }
+            this.tFade = window.setTimeout(() => {
+                this.tFade = undefined;
+                this.aviso = ""; this.avisoErro = false; this.avisoSaindo = false;
+                const x = this.raiz.querySelector(".ex-msg");
+                if (x && x.parentNode) { x.parentNode.removeChild(x); }
+            }, 300);
+        }, erro ? 10000 : 6000);
+    }
+
+    public destroy(): void { this.limparAviso(); }
 
     private agora(): string {
         const d = new Date();

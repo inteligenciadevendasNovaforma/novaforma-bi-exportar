@@ -4,7 +4,7 @@
     "displayName": "Painel Mês (NovaForma)",
     "guid": "pnMes1D6A8F42",
     "visualClassName": "Visual",
-    "version": "1.2.0.0",
+    "version": "1.2.1.0",
     "description": "Painel de Vendas - Mês: card, medidores por familia e tabela de positivacao mensal com mix; botao Filtros (filtra a pagina) e exportacao para Excel",
     "supportUrl": "https://novaforma.example",
     "gitHubUrl": ""

@@ -50,6 +50,8 @@
 .ex-op input { width: 18px; height: 18px; vertical-align: middle; margin: 0 6px 0 0; accent-color: @navy; }
 .ex-go { margin-top: 10px; width: 100%; font: 600 15px Arial, sans-serif; color: #FFF; background: @navy; border: 0; border-radius: 6px; padding: 10px 0; cursor: pointer; }
 .ex-msg { position: absolute; right: 0; top: calc(100% + 6px); font-size: 15px; color: #1B6B3A; background: #FFF; padding: 4px 10px; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,.12); white-space: nowrap; }
+.ex-msg { transition: opacity .25s ease; }
+.ex-msg.sai { opacity: 0; }
 .ex-msg.erro { color: #B42318; }
 .ex-menu ~ .ex-msg { display: none; }
 
