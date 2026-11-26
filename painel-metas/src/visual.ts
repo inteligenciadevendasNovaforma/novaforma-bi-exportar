@@ -322,7 +322,7 @@ export class Visual implements IVisual {
         const params = new URLSearchParams({ v: "2", n: nome, c: comp, j: b64 });
         const alvo = url.replace(/#.*$/, "") + "#" + params.toString();
         this.host.launchUrl(alvo);
-        this.mostrar("Página de download aberta: " + nome + " (link de " + (alvo.length / 1000).toFixed(1).replace(".", ",") + " mil caracteres)");
+        this.mostrar("Página de download aberta: " + nome);
     }
 
     public getFormattingModel(): powerbi.visuals.FormattingModel {

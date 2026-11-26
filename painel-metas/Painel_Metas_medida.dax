@@ -1,8 +1,9 @@
-// Medida de carga do visual "Painel Metas" v1.0 (tabela @Medida). Uma única linha de texto; registros separados por quebra de linha (UNICHAR 10).
+// Medida de carga do visual "Painel Metas" v1.1.0.0 (v1.1: blocos só das UFs da supervisão) (tabela @Medida). Uma única linha de texto; registros separados por quebra de linha (UNICHAR 10).
 // 1ª linha:  V|1~atualizacao|dataRef|anos|meses|dias|supervisoes|representantes|ufs|familias|materiais
 //   atualizacao = yyyy-mm-dd hh:nn:ss ('Atualização'[Última atualização], horário de Brasília); dataRef = yyyy-mm-dd ([Data Ref]).
 //   As 8 listas (botão Filtros) têm os valores separados por "^"; cada lista ignora o filtro do próprio campo.
-// Depois, para cada bloco (u = "*" total do contexto; depois uma sigla por UF do cliente, d_Clientes[UF], com meta ou movimento):
+// Depois, para cada bloco (u = "*" total do contexto; depois uma sigla por UF do cliente, d_Clientes[UF], com meta ou movimento,
+//   só entre as UFs com meta da supervisão do contexto; o total continua com todas as UFs):
 //   B|u|objetivoClientes|clientesV|clientesF|pctF|clientesCarteira|tendenciaFC|prazoV|notaMix
 //   F|u|ordem|familia|objetivo|vendidoMes|vendidoOntem|tendencia|faturado|objXFat|carteira|fatMaisCart|clienteMes|clientesOntem|clientesFaturados|clientesCarteira|dias
 //      (ordem 0 / familia TOTAL = total do bloco; dias = "dia:valor" separados por vírgula, só dias com valor <> 0)
@@ -21,11 +22,24 @@ VAR _excFat = { "YREB", "YBON", "YAMG", "YDC1", "YDC2", "YROS", "REB", "YR1T" }
 VAR _nl = UNICHAR ( 10 )
 VAR _ufsCtx = VALUES ( d_Clientes[UF] )
 VAR _famsCtx = VALUES ( d_Familia[Ordem] )
-// UFs com meta ou movimento no contexto (siglas de 2 letras)
+// UFs da(s) supervisão(ões) do contexto: as que têm meta (f_Metas ou f_Meta_Clientes, qualquer mês) para a supervisão.
+// f_Metas / f_Meta_Clientes só se ligam a d_Supervisão, então aqui só a Supervisão filtra. Assim um cliente de outra UF atendido
+// pela supervisão (ex.: cliente de MG/AP/SC numa supervisão do Nordeste) entra no bloco total, mas não abre um bloco próprio.
+// Se a supervisão não tem meta nenhuma (ex.: OPER.INTERNA), vale a regra anterior (UF com meta ou movimento).
+VAR _ufsDona =
+    DISTINCT (
+        UNION (
+            SELECTCOLUMNS ( VALUES ( f_Metas[UF2] ), "u", SUBSTITUTE ( f_Metas[UF2], "BR/", "" ) ),
+            SELECTCOLUMNS ( VALUES ( f_Meta_Clientes[UF 2] ), "u", SUBSTITUTE ( f_Meta_Clientes[UF 2], "BR/", "" ) )
+        )
+    )
+VAR _temDona = NOT ISEMPTY ( FILTER ( _ufsDona, LEN ( [u] ) = 2 ) )
+// UFs com meta ou movimento no contexto (siglas de 2 letras), restritas às UFs da supervisão
 VAR _ufs =
     FILTER (
         _ufsCtx,
-        LEN ( d_Clientes[UF] ) = 2
+        ( NOT _temDona || d_Clientes[UF] IN _ufsDona )
+            && LEN ( d_Clientes[UF] ) = 2
             && UNICODE ( d_Clientes[UF] ) >= 65 && UNICODE ( d_Clientes[UF] ) <= 90
             && CALCULATE (
                 NOT ISBLANK ( [Objetivo Clientes] ) || NOT ISBLANK ( [Objetivo (R$)] )

@@ -4,7 +4,7 @@
     "displayName": "Painel Metas (NovaForma)",
     "guid": "pnMetas8ED1F6B9",
     "visualClassName": "Visual",
-    "version": "1.0.1.0",
+    "version": "1.1.0.0",
     "description": "Painel de Metas: KPIs de clientes, painel de vendas do mes por familia e vendido dia x dia, total e por UF; botao Filtros (filtra a pagina) e exportacao para Excel igual a aba PAINEL METAS",
     "supportUrl": "https://novaforma.example",
     "gitHubUrl": ""

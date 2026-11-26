@@ -1,5 +1,6 @@
 "use strict";
-// Painel Metas | Representante (NovaForma) v1.0: réplica da aba "(Data do APP) PAINEL METAS | Re": um bloco por representante
+// Painel Metas | Representante (NovaForma) v1.1: "Carregando…" até os dados chegarem; a medida v1.1 entrega todos os blocos numa célula.
+// v1.0: réplica da aba "(Data do APP) PAINEL METAS | Re": um bloco por representante
 // (PAINEL DE VENDAS - MÊS | NOME - UF, KPIs de clientes e tabela por família), regra Data do APP, chave = nome do representante.
 // Desenho e Excel por molde vindos do visual Painel Metas; botão Filtros (filtra a página) e Exportar (Excel igual à aba:
 // download direto, página de download pelo link ou área de transferência + página "Colar dados" quando os blocos não cabem no link).
@@ -61,6 +62,11 @@ export class Visual implements IVisual {
         this.raiz.appendChild(this.topo);
         this.raiz.appendChild(this.corpo);
         options.element.appendChild(this.raiz);
+        // estado inicial até o Power BI entregar os dados da medida
+        const car = el("div", "pm-vazio pm-carregando", "Carregando…");
+        car.setAttribute("role", "status");
+        car.setAttribute("aria-live", "polite");
+        this.corpo.appendChild(car);
         this.filtros = new Filtros(this.host, this.raiz, () => this.desenhar(), () => this.settings.filtros, () => this.periodo(), MEDIDA);
         this.raiz.addEventListener("keydown", (ev: KeyboardEvent) => {
             if (ev.key !== "Escape") { return; }
@@ -339,18 +345,17 @@ export class Visual implements IVisual {
         const { b64, comp } = await Visual.codificar(entrada);
         const base = url.replace(/#.*$/, "") + "#";
         const alvo = base + new URLSearchParams({ v: "2", n: nome, c: comp, j: b64 }).toString();
-        const mil = (n: number): string => (n / 1000).toFixed(1).replace(".", ",");
         const qtd = fmtInt.format(entrada.blocos.length) + (entrada.blocos.length === 1 ? " representante" : " representantes");
         if (alvo.length <= LIMITE_LINK) {
             this.host.launchUrl(alvo);
-            this.mostrar(`Página de download aberta: ${nome} (link de ${mil(alvo.length)} mil caracteres)`);
+            this.mostrar(`Página de download aberta: ${nome}`);
             return;
         }
         // Blocos demais para o link: os dados vão pela área de transferência e o link leva só o aviso (k=cola).
         const copiou = comp === "1" && await this.copiar(PREFIXO_COLA + b64);
         if (copiou) {
             this.host.launchUrl(base + new URLSearchParams({ v: "2", n: nome, k: "cola", q: String(entrada.blocos.length), u: "representantes" }).toString());
-            this.mostrar(`Os ${qtd} não cabem no link (${mil(alvo.length)} mil caracteres). Os dados foram copiados: na página que abriu, clique em Colar dados.`);
+            this.mostrar(`Os ${qtd} não cabem no link. Os dados foram copiados: na página que abriu, clique em Colar dados.`);
         } else {
             this.mostrar(`Os ${qtd} não cabem no link e o Power BI bloqueou a cópia. Filtre por Supervisão ou Representante e exporte de novo.`, true);
         }

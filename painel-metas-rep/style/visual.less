@@ -38,6 +38,8 @@
 // blocos (um por representante), rolagem vertical
 .pm-corpo { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 0 clamp(10px, 1.4cqw, 24px) 24px; scrollbar-width: thin; }
 .pm-bloco { margin: clamp(10px, 1.2cqw, 18px) 0 clamp(22px, 2.6cqw, 40px); }
+// blocos fora da tela não são desenhados pelo navegador até rolar (muitos representantes)
+.pm-bloco { content-visibility: auto; contain-intrinsic-size: auto 420px; }
 .pm-sub { font-family: @anton; font-weight: 400; color: @navyAba; font-size: clamp(18px, 1.4cqw, 24px); margin: 0 0 8px; letter-spacing: 0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 // KPIs (Objetivo Clientes cinza com texto azul; Clientes(V) verde-petróleo; Clientes (F) e % azul-marinho)
