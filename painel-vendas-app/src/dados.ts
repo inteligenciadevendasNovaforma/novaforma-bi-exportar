@@ -1,6 +1,6 @@
 // Leitura da medida de carga do Painel de Vendas: uma linha de texto por representante (linha do visual):
 //   T|codigo|representante|uf|sup|V1|V2|V3|F1|F2|F3|carteira|Q1|Q2|Q3|FB|FC|PT|AP|CT     (T = A Aprovação, P APP; vazio = célula vazia)
-// No 1º representante vem o cabeçalho depois de "~":  titulo1|titulo2|titulo3|dataRef|anos|meses|dias|supervisoes|representantes|ufs|familias|materiais
+// No 1º representante vem o cabeçalho depois de "~":  titulo1|titulo2|titulo3|dataRef|supervisoes|representantes|ufs|familias|materiais
 import { LinhaPV, N, NCOLS } from "./xlsxPainelVendas";
 
 export type Ordem = "nome" | "vendido" | "codigo";

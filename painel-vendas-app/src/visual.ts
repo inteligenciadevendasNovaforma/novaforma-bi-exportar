@@ -1,5 +1,5 @@
 "use strict";
-// Painel de Vendas (NovaForma) v1.0: réplica da aba (Data Aprovação | Data APP) EVOLUÇÃO VENDA ("PAINEL DE VENDAS - DIA"):
+// Painel de Vendas (NovaForma) v1.1 (sem Ano/Mês/Dia no botão Filtros): réplica da aba (Data Aprovação | Data APP) EVOLUÇÃO VENDA ("PAINEL DE VENDAS - DIA"):
 // vendido, faturado (3 meses), carteira em aberto, clientes (3 meses) e mix do mês atual por representante.
 // O mesmo código atende os dois visuais; só src/config.ts (regra, medida, nomes) muda entre eles.
 // Botão Filtros (filtra a página) e Exportar (Excel igual à aba: download direto, página de download pelo link ou
@@ -113,7 +113,7 @@ export class Visual implements IVisual {
     private periodo(): string {
         const m = this.meses.filter(x => !!x);
         const ref = this.filtros.dataRef ? ` · Data Ref ${dataBR(this.filtros.dataRef)}` : "";
-        return m.length ? `Meses do painel: ${m[0]} a ${m[m.length - 1]}${ref} (Ano, Mês e Dia não mudam este painel)` : "";
+        return m.length ? `Meses do painel: ${m[0]} a ${m[m.length - 1]}${ref}` : "";
     }
 
     // ---------- tela ----------
@@ -261,7 +261,7 @@ export class Visual implements IVisual {
     private entrada(): EntradaPV {
         return {
             titulo: this.settings.titulo.texto.value || "PAINEL DE VENDAS - DIA", aba: CONFIG.aba, regra: CONFIG.regra, meses: this.meses,
-            geradoEm: this.agora(), periodo: this.periodo().replace(/ \(Ano, Mês e Dia não mudam este painel\)$/, ""), filtros: this.filtros.resumo(),
+            geradoEm: this.agora(), periodo: this.periodo(), filtros: this.filtros.resumo(),
             linhas: this.linhas, opcoes: { tabela: this.escolhas.tabela, dados: this.escolhas.dados }
         };
     }
@@ -339,18 +339,17 @@ export class Visual implements IVisual {
         const { b64, comp } = await Visual.codificar(entrada);
         const base = url.replace(/#.*$/, "") + "#";
         const alvo = base + new URLSearchParams({ v: "2", n: nome, c: comp, j: b64 }).toString();
-        const mil = (n: number): string => (n / 1000).toFixed(1).replace(".", ",");
         const qtd = fmtN.format(this.linhas.length);
         if (alvo.length <= LIMITE_LINK) {
             this.host.launchUrl(alvo);
-            this.mostrar(`Página de download aberta: ${nome} (link de ${mil(alvo.length)} mil caracteres)`);
+            this.mostrar(`Página de download aberta: ${nome}`);
             return;
         }
         // Tabela grande demais para o link: os dados vão pela área de transferência e o link leva só o aviso (k=cola).
         const copiou = comp === "1" && await this.copiar(PREFIXO_COLA + b64);
         if (copiou) {
             this.host.launchUrl(base + new URLSearchParams({ v: "2", n: nome, k: "cola", q: String(this.linhas.length) }).toString());
-            this.mostrar(`A tabela (${qtd} representantes) não cabe no link (${mil(alvo.length)} mil caracteres). Os dados foram copiados: na página que abriu, clique em Colar dados.`);
+            this.mostrar(`A tabela (${qtd} representantes) é grande demais para ir pelo link. Os dados foram copiados: na página que abriu, clique em Colar dados.`);
         } else {
             this.mostrar(`A tabela (${qtd} representantes) não cabe no link e o Power BI bloqueou a cópia. Filtre por Supervisão ou Representante e exporte de novo.`, true);
         }

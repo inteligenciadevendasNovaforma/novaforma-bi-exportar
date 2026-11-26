@@ -171,11 +171,12 @@ export class Filtros {
         return p;
     }
 
-    // A [Data Ref] só muda com um Dia, um Mês e um Ano: avisa quando a seleção de datas não forma uma data
+    // Pedidos Mês v1.1: o período muda com um Ano e um Mês (mês inteiro); o Dia é opcional (do dia 1 até o Dia escolhido).
+    // Avisa quando a seleção de datas não forma um mês (ex.: só o Ano, dois meses ou dois dias).
     private atualizarDica(d: HTMLElement): void {
-        const q = ["ano", "mes", "dia"].map(k => this.qtdPendente(k));
-        const algum = q.some(n => n > 0), umaData = q.every(n => n === 1);
-        d.textContent = algum && !umaData ? "Para mudar a data do painel, escolha um Dia, um Mês e um Ano." : "";
+        const [a, m, di] = ["ano", "mes", "dia"].map(k => this.qtdPendente(k));
+        const algum = a + m + di > 0, umMes = a === 1 && m === 1 && di <= 1;
+        d.textContent = algum && !umMes ? "Para ver outro mês, escolha um Ano e um Mês (o Dia é opcional: com um Dia, o período vai do dia 1 até ele)." : "";
     }
 
     private painelCampo(cp: Campo, nav: HTMLElement, mudou: () => void): HTMLElement {

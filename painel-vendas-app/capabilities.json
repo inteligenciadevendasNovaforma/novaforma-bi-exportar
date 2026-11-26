@@ -162,24 +162,6 @@
                         "bool": true
                     }
                 },
-                "colAno": {
-                    "displayName": "Ano (Tabela[Coluna])",
-                    "type": {
-                        "text": true
-                    }
-                },
-                "colMes": {
-                    "displayName": "Mês (Tabela[Coluna])",
-                    "type": {
-                        "text": true
-                    }
-                },
-                "colDia": {
-                    "displayName": "Dia (Tabela[Coluna])",
-                    "type": {
-                        "text": true
-                    }
-                },
                 "colSup": {
                     "displayName": "Supervisão (Tabela[Coluna])",
                     "type": {

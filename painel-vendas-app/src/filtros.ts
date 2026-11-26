@@ -1,5 +1,6 @@
 // Botão Filtros (filtra a página toda): mesmo mecanismo do Pedido Diário v2.0 / Painel Mês v1.1 / Painel Dia v1.2
 // (cópia de pedidos-mes/src/filtros.ts; o Painel de Vendas lê as listas do cabeçalho a partir da posição 3, depois dos 3 títulos de mês).
+// v1.1: sem Ano, Mês e Dia (as medidas do painel usam os meses do BW / hoje; esses campos não mudavam nada aqui).
 import powerbi from "powerbi-visuals-api";
 import { FiltrosCard, COLUNAS_PADRAO } from "./settings";
 
@@ -9,14 +10,11 @@ type ChaveColuna = keyof typeof COLUNAS_PADRAO;
 interface Campo { id: string; rotulo: string; col: ChaveColuna; num: boolean; lista: number; }
 // lista = posição da lista de valores no cabeçalho da medida (depois da data de referência)
 export const CAMPOS: Campo[] = [
-    { id: "ano", rotulo: "Ano", col: "colAno", num: true, lista: 0 },
-    { id: "mes", rotulo: "Mês", col: "colMes", num: false, lista: 1 },
-    { id: "dia", rotulo: "Dia", col: "colDia", num: true, lista: 2 },
-    { id: "sup", rotulo: "Supervisão", col: "colSup", num: false, lista: 3 },
-    { id: "rep", rotulo: "Representante", col: "colRep", num: false, lista: 4 },
-    { id: "fam", rotulo: "Família", col: "colFam", num: false, lista: 6 },
-    { id: "mat", rotulo: "Material", col: "colMat", num: false, lista: 7 },
-    { id: "uf", rotulo: "UF", col: "colUf", num: false, lista: 5 }
+    { id: "sup", rotulo: "Supervisão", col: "colSup", num: false, lista: 0 },
+    { id: "rep", rotulo: "Representante", col: "colRep", num: false, lista: 1 },
+    { id: "fam", rotulo: "Família", col: "colFam", num: false, lista: 3 },
+    { id: "mat", rotulo: "Material", col: "colMat", num: false, lista: 4 },
+    { id: "uf", rotulo: "UF", col: "colUf", num: false, lista: 2 }
 ];
 const MAX_ITENS = 400;
 
@@ -54,7 +52,7 @@ export class Filtros {
     private aplicados = new Map<string, Set<string>>();
     private pendentes = new Map<string, Set<string>>();
     private busca = new Map<string, string>();
-    private campoAtivo = "ano";
+    private campoAtivo = "sup";
     private btn: HTMLButtonElement | null = null;
 
     // cfg: cartão Formatar > Filtros; periodo: texto do rodapé do painel; medida: nome da medida (mensagem de lista vazia)
@@ -156,29 +154,17 @@ export class Filtros {
             nav.appendChild(b);
         });
         corpo.appendChild(nav);
-        const dica = el("div", "fp-dica");
-        corpo.appendChild(this.painelCampo(CAMPOS.find(c => c.id === this.campoAtivo) || CAMPOS[0], nav, () => this.atualizarDica(dica)));
+        corpo.appendChild(this.painelCampo(CAMPOS.find(c => c.id === this.campoAtivo) || CAMPOS[0], nav));
         p.appendChild(corpo);
 
         const rod = el("div", "fp-rod");
-        const txt = el("div", "fp-per");
-        txt.appendChild(el("div", "", this.periodo()));
-        txt.appendChild(dica);
-        this.atualizarDica(dica);
-        rod.appendChild(txt);
+        rod.appendChild(el("div", "fp-per", this.periodo()));
         rod.appendChild(botao("fp-aplicar", "Aplicar", () => this.aplicar()));
         p.appendChild(rod);
         return p;
     }
 
-    // A [Data Ref] só muda com um Dia, um Mês e um Ano: avisa quando a seleção de datas não forma uma data
-    private atualizarDica(d: HTMLElement): void {
-        const q = ["ano", "mes", "dia"].map(k => this.qtdPendente(k));
-        const algum = q.some(n => n > 0), umaData = q.every(n => n === 1);
-        d.textContent = algum && !umaData ? "Para mudar a data do painel, escolha um Dia, um Mês e um Ano." : "";
-    }
-
-    private painelCampo(cp: Campo, nav: HTMLElement, mudou: () => void): HTMLElement {
+    private painelCampo(cp: Campo, nav: HTMLElement): HTMLElement {
         const box = el("div", "fp-pane");
         box.setAttribute("role", "tabpanel");
         const todos = this.listas.get(cp.id) || [];
@@ -206,7 +192,6 @@ export class Filtros {
             const b = nav.querySelector(`[data-campo="${cp.id}"] .fp-q`) as HTMLElement | null;
             if (b) { b.textContent = q ? String(q) : ""; b.className = "fp-q" + (q ? "" : " zero"); }
             info.textContent = (q ? `${q} selecionado${q > 1 ? "s" : ""}` : "Nenhum selecionado (sem filtro)") + ` · ${todos.length} valores`;
-            mudou();
         };
         let visiveis: string[] = [];
         const desenharLista = (): void => {

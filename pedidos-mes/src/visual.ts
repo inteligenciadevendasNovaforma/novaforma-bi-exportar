@@ -1,5 +1,5 @@
 "use strict";
-// Pedidos Mês (NovaForma) v1.0: réplica da aba PEDIDOS MÊS (vendido do mês por representante > cliente > família comercial),
+// Pedidos Mês (NovaForma) v1.1 (Dia opcional: Ano + Mês = mês inteiro): réplica da aba PEDIDOS MÊS (vendido do mês por representante > cliente > família comercial),
 // tabela rolável com cabeçalho fixo; botão Filtros (filtra a página) e Exportar (Excel igual à aba, ou cópia para colar no Excel).
 // Dados grandes: uma linha do visual por representante (até 30 mil, com fetchMoreData), cada uma com as linhas cliente x família.
 import powerbi from "powerbi-visuals-api";
@@ -101,6 +101,7 @@ export class Visual implements IVisual {
         this.temDados = true;
     }
 
+    // dataRef = data final do período calculada pela medida (Ano + Mês sem Dia = último dia do mês; sem seleção = hoje)
     private periodo(): string {
         const r = this.filtros.dataRef;
         return r ? `Período: ${dataBR(r.slice(0, 8) + "01")} a ${dataBR(r)}` : "";
@@ -308,17 +309,16 @@ export class Visual implements IVisual {
         const { b64, comp } = await Visual.codificar(entrada);
         const base = url.replace(/#.*$/, "") + "#";
         const alvo = base + new URLSearchParams({ v: "2", n: nome, c: comp, j: b64 }).toString();
-        const mil = (n: number): string => (n / 1000).toFixed(1).replace(".", ",");
         if (alvo.length <= LIMITE_LINK) {
             this.host.launchUrl(alvo);
-            this.mostrar(`Página de download aberta: ${nome} (link de ${mil(alvo.length)} mil caracteres)`);
+            this.mostrar(`Página de download aberta: ${nome}`);
             return;
         }
         // Tabela grande demais para o link: os dados vão pela área de transferência e o link leva só o aviso (k=cola).
         const copiou = comp === "1" && await this.copiar(PREFIXO_COLA + b64);
         if (copiou) {
             this.host.launchUrl(base + new URLSearchParams({ v: "2", n: nome, k: "cola", q: String(this.nLinhas) }).toString());
-            this.mostrar(`A tabela (${fmtN.format(this.nLinhas)} linhas) não cabe no link (${mil(alvo.length)} mil caracteres). Os dados foram copiados: na página que abriu, clique em Colar dados.`);
+            this.mostrar(`A tabela (${fmtN.format(this.nLinhas)} linhas) é grande demais para ir pelo link. Os dados foram copiados: na página que abriu, clique em Colar dados.`);
         } else {
             this.mostrar(`A tabela (${fmtN.format(this.nLinhas)} linhas) não cabe no link e o Power BI bloqueou a cópia. Filtre por Supervisão ou Representante e exporte de novo.`, true);
         }

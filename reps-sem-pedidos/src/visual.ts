@@ -14,14 +14,11 @@ type ChaveColuna = keyof typeof COLUNAS_PADRAO;
 interface Campo { id: string; rotulo: string; col: ChaveColuna; num: boolean; lista: number; }
 // lista = posição da lista de valores no cabeçalho da medida (depois da data de referência)
 const CAMPOS: Campo[] = [
-    { id: "ano", rotulo: "Ano", col: "colAno", num: true, lista: 0 },
-    { id: "mes", rotulo: "Mês", col: "colMes", num: false, lista: 1 },
-    { id: "dia", rotulo: "Dia", col: "colDia", num: true, lista: 2 },
-    { id: "sup", rotulo: "Supervisão", col: "colSup", num: false, lista: 3 },
-    { id: "rep", rotulo: "Representante", col: "colRep", num: false, lista: 4 },
-    { id: "fam", rotulo: "Família", col: "colFam", num: false, lista: 6 },
-    { id: "mat", rotulo: "Material", col: "colMat", num: false, lista: 7 },
-    { id: "uf", rotulo: "UF", col: "colUf", num: false, lista: 5 }
+    { id: "sup", rotulo: "Supervisão", col: "colSup", num: false, lista: 0 },
+    { id: "rep", rotulo: "Representante", col: "colRep", num: false, lista: 1 },
+    { id: "fam", rotulo: "Família", col: "colFam", num: false, lista: 3 },
+    { id: "mat", rotulo: "Material", col: "colMat", num: false, lista: 4 },
+    { id: "uf", rotulo: "UF", col: "colUf", num: false, lista: 2 }
 ];
 const MAX_ITENS = 400;
 const NAO_VENDEU = "NÃO VENDEU";
@@ -67,7 +64,7 @@ export class Visual implements IVisual {
     private pendentes = new Map<string, Set<string>>();
     private busca = new Map<string, string>();
     private popAberto = false;
-    private campoAtivo = "ano";
+    private campoAtivo = "sup";
     private btnFiltros: HTMLButtonElement | null = null;
 
     constructor(options: VisualConstructorOptions) {
@@ -465,7 +462,7 @@ export class Visual implements IVisual {
         const params = new URLSearchParams({ v: "2", n: nome, c: comp, j: b64 });
         const alvo = url.replace(/#.*$/, "") + "#" + params.toString();
         this.host.launchUrl(alvo);
-        this.mostrar("Página de download aberta: " + nome + " (link de " + Math.round(alvo.length / 1024) + " mil caracteres)");
+        this.mostrar("Página de download aberta: " + nome);
     }
 
     public getFormattingModel(): powerbi.visuals.FormattingModel {

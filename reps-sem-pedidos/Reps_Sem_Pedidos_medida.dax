@@ -1,10 +1,10 @@
-// Medida de carga do visual "Reps Sem Pedidos" (tabela @Medida)
+// Medida de carga do visual "Reps Sem Pedidos" v1.1 (tabela @Medida)
 // Uma linha por representante do universo do Painel (Ativo SAP, código <> "#", nome sem "VENDA"):  nome|uf|sup|cliMes
 //   cliMes = [CLI Mês] (clientes positivados no mês até a Data Ref, faturamento + carteira); vazio = não vendeu.
 //   O visual mostra só quem tem cliMes vazio ("NÃO VENDEU"); os demais vêm para o cabeçalho e os filtros nunca ficarem sem linha.
 // Na primeira linha (1º representante em ordem alfabética entre os selecionados) vai o cabeçalho, depois de "~":
-//   dataRef|anos|meses|dias|supervisoes|representantes|ufs|familias|materiais
-//   dataRef = yyyy-mm-dd; cada lista tem os valores separados por "^" (valores disponíveis para o botão Filtros).
+//   dataRef|supervisoes|representantes|ufs|familias|materiais   (v1.1: sem as listas de Ano, Mês e Dia; o botão Filtros não tem mais esses campos)
+//   dataRef = yyyy-mm-dd ([Data Ref]: sem Dia/Mês/Ano escolhidos na página = hoje; CLI Mês = do dia 1 do mês até a Data Ref); cada lista tem os valores separados por "^" (valores disponíveis para o botão Filtros).
 //   Cada lista ignora o filtro do próprio campo (como uma segmentação), para dar para trocar a seleção.
 Reps Sem Pedidos (visual) =
 VAR _nome = SELECTEDVALUE ( d_Representantes[Nome do Rep] )
@@ -35,15 +35,6 @@ VAR _cab =
         _nome = _primeiro,
         VAR _ref = [Data Ref]
         // listas para o botão Filtros (contexto do visual = filtros da página + filtros aplicados pelo próprio visual)
-        VAR _anos =
-            CALCULATE ( CONCATENATEX ( VALUES ( d_Calendario[Ano] ), FORMAT ( d_Calendario[Ano], "0" ), "^", d_Calendario[Ano], ASC ), REMOVEFILTERS ( d_Calendario ) )
-        VAR _meses =
-            CALCULATE (
-                CONCATENATEX ( SUMMARIZE ( d_Calendario, d_Calendario[MêsNro], d_Calendario[Mês] ), d_Calendario[Mês], "^", d_Calendario[MêsNro], ASC ),
-                REMOVEFILTERS ( d_Calendario )
-            )
-        VAR _dias =
-            CALCULATE ( CONCATENATEX ( VALUES ( d_Calendario[Dia] ), FORMAT ( d_Calendario[Dia], "0" ), "^", d_Calendario[Dia], ASC ), REMOVEFILTERS ( d_Calendario ) )
         VAR _sups =
             CALCULATE (
                 CONCATENATEX ( VALUES ( d_Representantes[Supervisão] ), SUBSTITUTE ( d_Representantes[Supervisão], "^", " " ), "^", d_Representantes[Supervisão], ASC ),
@@ -92,7 +83,7 @@ VAR _cab =
                 )
             RETURN CONCATENATEX ( FILTER ( _t, [Material] <> "" ), SUBSTITUTE ( SUBSTITUTE ( SUBSTITUTE ( [Material], "^", " " ), "|", " " ), "~", " " ), "^", [Material], ASC )
         RETURN
-            "~" & FORMAT ( _ref, "yyyy-mm-dd" ) & "|" & _anos & "|" & _meses & "|" & _dias & "|" & _sups & "|" & _reps & "|" & _ufs & "|"
+            "~" & FORMAT ( _ref, "yyyy-mm-dd" ) & "|" & _sups & "|" & _reps & "|" & _ufs & "|"
                 & SUBSTITUTE ( _fams, "|", " " ) & "|" & _mats,
         ""
     )
