@@ -1,10 +1,10 @@
 {
   "visual": {
-    "name": "painelDiaNovaForma",
+    "name": "pnDia",
     "displayName": "Painel Dia (NovaForma)",
-    "guid": "painelDiaNovaForma7C1D2E3F4A5B60718293A4B5C6D7E8F90",
+    "guid": "pnDia2E7B9053",
     "visualClassName": "Visual",
-    "version": "1.2.1.0",
+    "version": "1.2.2.0",
     "description": "Painel de Vendas - Dia: cards, medidores por familia e tabela de positivacao diaria com mix do mes; botao Filtros (filtra a pagina)",
     "supportUrl": "https://novaforma.example",
     "gitHubUrl": ""
