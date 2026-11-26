@@ -9,6 +9,7 @@ import { gerarXlsxPedidos, expandir, CargaPedidos } from "../pedidos-mes/src/xls
 import { gerarXlsxPainelVendas, expandir as expandirPV, CargaPV } from "../painel-vendas-aprovacao/src/xlsxPainelVendas";
 import { gerarXlsxMetasRep, expandir as expandirMR, CargaRep } from "../painel-metas-rep/src/xlsxMetasRep";
 import { ANTON_B64 } from "./fonte";
+import { inflarXlsxComLimite, validarXlsxBytes, MAX_COMPRESSED_XLSX_BYTES } from "./xlsxBytes";
 
 interface CargaDia extends Omit<EntradaDia, "imagens"> { tipo: "painelDia"; svgs: { svg: string; w: number; h: number }[]; }
 // Painel Mês v1.1+ / Painel Dia v1.2+ mandam também periodo/filtros (rodapé do Excel); versões antigas não mandam
@@ -61,6 +62,7 @@ function entregar(bytes: Uint8Array, nome: string, mime: string): void {
     const a = $("#bt") as HTMLAnchorElement;
     a.href = URL.createObjectURL(new Blob([bytes as BlobPart], { type: mime }));
     a.download = nome;
+    $("#st").classList.remove("erro");
     $("#st").textContent = "✓"; $("#tit").textContent = "Arquivo pronto";
     $("#msg").textContent = "Se o download não começar, use o botão abaixo.";
     $("#nome").textContent = nome;
@@ -86,13 +88,25 @@ function esperarCola(nome: string, mime: string, linhas: string, unidade: string
     const usar = async (texto: string): Promise<void> => {
         if (feito) { return; }
         const t = (texto || "").trim();
-        const pref = Object.keys(PREFIXOS_COLA).find(k => t.indexOf(k) === 0);
+        const pref = t.indexOf("NFXLSX1.") === 0 ? "NFXLSX1." : Object.keys(PREFIXOS_COLA).find(k => t.indexOf(k) === 0);
         if (!pref) { erro("O texto colado não veio do painel. Volte ao Power BI, clique em Exportar > Baixar Excel de novo e cole aqui sem copiar outra coisa antes."); bt.classList.remove("oculto"); return; }
         feito = true; bt.classList.add("oculto");
         try {
-            const carga = JSON.parse(new TextDecoder().decode(await inflar(b64u(t.slice(pref.length))))) as unknown;
-            entregar(PREFIXOS_COLA[pref](carga), nome, mime);
-        } catch (e) { feito = false; erro("Os dados colados estão incompletos. " + (e instanceof Error ? e.message : "")); }
+            if (pref === "NFXLSX1.") {
+                // Bound encoded input before atob allocates the compressed byte array.
+                if (t.length - pref.length > Math.ceil(MAX_COMPRESSED_XLSX_BYTES / 3) * 4) {
+                    throw new Error("O arquivo recebido ultrapassa 30 MB.");
+                }
+                entregar(await inflarXlsxComLimite(b64u(t.slice(pref.length))), nome, mime);
+            } else {
+                const carga = JSON.parse(new TextDecoder().decode(await inflar(b64u(t.slice(pref.length))))) as unknown;
+                entregar(PREFIXOS_COLA[pref](carga), nome, mime);
+            }
+        } catch (e) {
+            feito = false;
+            erro("Os dados colados estão incompletos. " + (e instanceof Error ? e.message : ""));
+            bt.classList.remove("oculto");
+        }
     };
     document.addEventListener("paste", ev => { ev.preventDefault(); void usar(ev.clipboardData ? ev.clipboardData.getData("text") : ""); });
     bt.addEventListener("click", async () => {
@@ -141,7 +155,11 @@ function esperarCola(nome: string, mime: string, linhas: string, unidade: string
             esperarCola(nome, mime, p.get("q") || "", (p.get("u") || "").replace(/[^a-zà-ú ]/gi, ""));
         } else if (d) {
             const b = b64u(d);
-            entregar(p.get("c") === "1" ? await inflar(b) : b, nome, p.get("t") || mime);
+            const tipo = p.get("t") || mime;
+            const bytes = tipo === mime
+                ? (p.get("c") === "1" ? await inflarXlsxComLimite(b) : validarXlsxBytes(b))
+                : (p.get("c") === "1" ? await inflar(b) : b);
+            entregar(bytes, nome, tipo);
         } else { erro("Nenhum arquivo recebido (página v2.6). Abra esta página pelo botão Exportar do painel."); }
     } catch (e) { erro("O arquivo chegou incompleto ou passou do limite do endereço. " + (e instanceof Error ? e.message : "")); }
 })();
