@@ -4,7 +4,7 @@
     "displayName": "Painel Vendas (Data do APP) (NovaForma)",
     "guid": "pvApp7DC0E5A8",
     "visualClassName": "Visual",
-    "version": "1.1.0.0",
+    "version": "1.1.1.0",
     "description": "Painel de Vendas (Data do APP): vendido, faturado, carteira, clientes e mix por representante (aba (Data APP) EVOLUCAO VENDA); botao Filtros (filtra a pagina) e exportacao para Excel igual a aba",
     "supportUrl": "https://novaforma.example",
     "gitHubUrl": ""

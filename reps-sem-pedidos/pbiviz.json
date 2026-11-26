@@ -4,7 +4,7 @@
     "displayName": "Reps Sem Pedidos (NovaForma)",
     "guid": "repsSemPed4A9DB275",
     "visualClassName": "Visual",
-    "version": "1.1.0.0",
+    "version": "1.1.1.0",
     "description": "Reps Sem Pedidos: lista dos representantes ativos sem cliente positivado no mes (NAO VENDEU), com botao Filtros que filtra a pagina e exportacao para Excel",
     "supportUrl": "https://novaforma.example",
     "gitHubUrl": ""
