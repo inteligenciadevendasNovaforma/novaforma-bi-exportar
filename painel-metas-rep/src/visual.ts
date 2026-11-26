@@ -71,7 +71,7 @@ export class Visual implements IVisual {
         this.raiz.addEventListener("keydown", (ev: KeyboardEvent) => {
             if (ev.key !== "Escape") { return; }
             if (this.filtros.popAberto) { this.filtros.fechar(); ev.stopPropagation(); }
-            else if (this.menuAberto) { this.menuAberto = false; this.desenhar(); }
+            else if (this.menuAberto) { this.menuAberto = false; this.limparAviso(); this.desenhar(); }
         });
     }
 
@@ -126,7 +126,7 @@ export class Visual implements IVisual {
         else { topo.appendChild(el("div", "pm-espaco")); }
         if (this.atualizacao && this.temDados) { topo.appendChild(el("div", "pm-atu", this.atualizacao)); }
         const acoes = el("div", "pm-acoes");
-        if (s.filtros.mostrarBotao.value) { acoes.appendChild(this.filtros.botao("pm-btn", () => { this.menuAberto = false; })); }
+        if (s.filtros.mostrarBotao.value) { acoes.appendChild(this.filtros.botao("pm-btn", () => { this.menuAberto = false; this.limparAviso(); })); }
         if (s.exportacao.mostrarBotao.value) { acoes.appendChild(this.menuExportar()); }
         topo.appendChild(acoes);
         if (!this.corpoPronto) { this.corpoPronto = true; this.desenharCorpo(); }
@@ -232,7 +232,7 @@ export class Visual implements IVisual {
 
     private menuExportar(): HTMLElement {
         const cx = el("div", "ex");
-        const btn = botao("pm-btn ex-btn", "Exportar ▾", () => { this.menuAberto = !this.menuAberto; this.aviso = ""; if (this.menuAberto) { this.filtros.popAberto = false; } this.desenhar(); });
+        const btn = botao("pm-btn ex-btn", "Exportar ▾", () => { this.menuAberto = !this.menuAberto; this.limparAviso(); if (this.menuAberto) { this.filtros.popAberto = false; } this.desenhar(); });
         btn.setAttribute("aria-haspopup", "true");
         btn.setAttribute("aria-expanded", String(this.menuAberto));
         cx.appendChild(btn);
@@ -255,7 +255,7 @@ export class Visual implements IVisual {
         if (this.aviso) {
             const msg = el("div", "ex-msg" + (this.avisoErro ? " erro" : ""), this.aviso);
             msg.setAttribute("role", "status");
-            const x = botao("ex-msg-x", "×", () => { this.aviso = ""; this.desenhar(); });
+            const x = botao("ex-msg-x", "×", () => { this.limparAviso(); this.desenhar(); });
             x.setAttribute("aria-label", "Fechar aviso");
             msg.appendChild(x);
             cx.appendChild(msg);
@@ -263,7 +263,29 @@ export class Visual implements IVisual {
         return cx;
     }
 
-    private mostrar(t: string, erro = false): void { this.aviso = t; this.avisoErro = erro; this.desenhar(); }
+    private timerAviso: number | undefined;
+
+    private limparAviso(): void {
+        if (this.timerAviso !== undefined) { window.clearTimeout(this.timerAviso); this.timerAviso = undefined; }
+        this.aviso = "";
+        this.avisoErro = false;
+    }
+
+    private mostrar(t: string, erro = false): void {
+        this.limparAviso();
+        this.aviso = t; this.avisoErro = erro;
+        this.desenhar();
+        this.timerAviso = window.setTimeout(() => {
+            this.timerAviso = undefined;
+            this.aviso = ""; this.avisoErro = false;
+            const m = this.raiz.querySelector(".ex-msg") as HTMLElement | null;
+            if (!m) { return; }
+            const reduz = typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+            if (reduz) { m.remove(); return; }
+            m.classList.add("sai");
+            window.setTimeout(() => { m.remove(); }, 350);
+        }, erro ? 10000 : 6000);
+    }
 
     private agora(): string {
         const d = new Date();
