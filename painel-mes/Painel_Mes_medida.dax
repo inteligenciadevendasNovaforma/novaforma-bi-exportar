@@ -1,16 +1,38 @@
-// Medida de carga do visual "Painel Mês" v1.1 (tabela @Medida)
+// Medida de carga do visual "Painel Mês" v1.2 (tabela @Medida)
 // Uma linha por representante do painel (Ativo SAP, código <> "#", nome sem "VENDA"):  nome|uf|sup|cliMes|FB|FC|CT|PT|AP|vendidoMes
 // Na primeira linha (1º representante em ordem alfabética entre os SELECIONADOS) vai o cabeçalho, depois de "~":
-//   vendidoMes|cliMesCartao|repsMes|repsFB|repsFC|repsCT|repsPT|repsAP|repsPainel|dataRef|anos|meses|dias|supervisoes|representantes|ufs|familias|materiais
+//   vendidoMes|cliMesCartao|repsMes|repsFB|repsFC|repsCT|repsPT|repsAP|repsAtivos|dataRef|anos|meses|dias|supervisoes|representantes|ufs|familias|materiais
 //   Os 9 números (card + 6 medidores) usam ALLSELECTED ( d_Representantes ): seguem os filtros da página, das segmentações e do
-//   botão Filtros (Supervisão, Representante, UF), como uma segmentação. Sem filtro nenhum dão o mesmo valor da v1.0 (REMOVEFILTERS).
-//   Família/Material (colunas das fatos) e o período (Data Ref) já entravam pelo contexto e continuam entrando.
+//   botão Filtros (Supervisão, Representante, UF), como uma segmentação.
+//   repsAtivos (MÁXIMO dos medidores, v1.2) = representantes ATIVOS: [Reps Painel] (Ativo SAP, código <> "#", sem VENDA)
+//   e SEM bloqueio de compras no SAP (d_Representantes[Bloq central compras] = "#", a mesma regra de [Nº representantes (ativos)]).
+//   Sem filtro: 216 (era 676 com [Reps Painel]); SUP-ES/MG: 39.
+//   Família/Material (colunas das fatos) e o período já entravam pelo contexto e continuam entrando.
 //   dataRef = yyyy-mm-dd; as 8 listas têm os valores separados por "^" (botão Filtros; cada lista ignora o filtro do próprio campo;
 //   Representante segue Supervisão/UF, Material segue Família).
-// Período: 1º dia do mês da [Data Ref] até a [Data Ref]. A [Data Ref] só muda com UM Dia, UM Mês e UM Ano escolhidos.
+// Período (v1.2): o Dia NÃO é obrigatório no Painel Mês.
+//   - UM Ano + UM Mês escolhidos, sem um Dia: o mês inteiro escolhido (1º ao último dia; se for o mês atual, até hoje).
+//   - UM Dia + UM Mês + UM Ano: 1º dia do mês até essa data (como antes).
+//   - sem seleção: mês atual até hoje (como antes).
+//   As medidas do modelo continuam lendo a [Data Ref]; esta medida só entrega a elas, via filtro de d_Calendario, a data de
+//   referência do Painel Mês (_ref). Sem seleção e com Dia + Mês + Ano a data entregue é a própria [Data Ref] (números idênticos à v1.1).
 Painel Mês (visual) =
 VAR _nome = SELECTEDVALUE ( d_Representantes[Nome do Rep] )
 VAR _exibir = SELECTEDVALUE ( d_Representantes[Chave do Vendedor], _nome )
+// data de referência do Painel Mês: Ano + Mês sem Dia = mês inteiro (último dia do mês no calendário, ou hoje se for o mês atual)
+VAR _hoje = [Data Ref]
+VAR _mesInteiro = HASONEVALUE ( d_Calendario[Ano] ) && HASONEVALUE ( d_Calendario[MêsNro] ) && NOT HASONEVALUE ( d_Calendario[Dia] )
+VAR _ref =
+    IF (
+        _mesInteiro,
+        VAR _a = VALUES ( d_Calendario[Ano] )
+        VAR _m = VALUES ( d_Calendario[MêsNro] )
+        VAR _ult = CALCULATE ( MAX ( d_Calendario[Date] ), REMOVEFILTERS ( d_Calendario ), d_Calendario[Ano] = _a, d_Calendario[MêsNro] = _m )
+        RETURN IF ( YEAR ( _hoje ) = _a && MONTH ( _hoje ) = _m, _hoje, COALESCE ( _ult, _hoje ) ),
+        _hoje
+    )
+// filtro que faz a [Data Ref] das medidas do modelo devolver _ref (Dia + Mês + Ano de _ref)
+VAR _f = TREATAS ( { ( YEAR ( _ref ), MONTH ( _ref ), DAY ( _ref ) ) }, d_Calendario[Ano], d_Calendario[MêsNro], d_Calendario[Dia] )
 VAR _painel =
     CALCULATE (
         COUNTROWS ( d_Representantes ),
@@ -20,13 +42,13 @@ VAR _painel =
     ) > 0
 VAR _uf = SELECTEDVALUE ( d_Representantes[UF], MIN ( d_Representantes[UF] ) )
 VAR _sup = SELECTEDVALUE ( d_Representantes[Supervisão], MIN ( d_Representantes[Supervisão] ) )
-VAR _mes = [CLI Mês]
-VAR _fb = [CLI Mês FB]
-VAR _fc = [CLI Mês FC]
-VAR _ct = [CLI Mês CT]
-VAR _pt = [CLI Mês PT]
-VAR _ap = [CLI Mês AP]
-VAR _vm = [Vendido Mês]
+VAR _mes = CALCULATE ( [CLI Mês], _f )
+VAR _fb = CALCULATE ( [CLI Mês FB], _f )
+VAR _fc = CALCULATE ( [CLI Mês FC], _f )
+VAR _ct = CALCULATE ( [CLI Mês CT], _f )
+VAR _pt = CALCULATE ( [CLI Mês PT], _f )
+VAR _ap = CALCULATE ( [CLI Mês AP], _f )
+VAR _vm = CALCULATE ( [Vendido Mês], _f )
 VAR _linha =
     SUBSTITUTE ( SUBSTITUTE ( _exibir, "|", " " ), "~", " " ) & "|" & _uf & "|" & _sup & "|"
         & IF ( ISBLANK ( _mes ), "", FORMAT ( _mes, "0", "en-US" ) ) & "|"
@@ -47,18 +69,17 @@ VAR _primeiro =
 VAR _cab =
     IF (
         _nome = _primeiro,
-        VAR _ref = [Data Ref]
-        // totais do card e dos medidores: representantes selecionados (filtros da página/segmentações/botão Filtros), como uma segmentação
+        // totais do card e dos medidores (com a data do Painel Mês, _f): representantes selecionados (filtros da página/segmentações/botão Filtros), como uma segmentação
         VAR _nums =
-            FORMAT ( COALESCE ( CALCULATE ( [Vendido Mês], ALLSELECTED ( d_Representantes ) ), 0 ), "0.00", "en-US" ) & "|"
-                & FORMAT ( COALESCE ( CALCULATE ( [CLI Mês (Cartão)], ALLSELECTED ( d_Representantes ) ), 0 ), "0", "en-US" ) & "|"
-                & FORMAT ( COALESCE ( CALCULATE ( [Reps Mês], ALLSELECTED ( d_Representantes ) ), 0 ), "0", "en-US" ) & "|"
-                & FORMAT ( COALESCE ( CALCULATE ( [Reps Mês FB], ALLSELECTED ( d_Representantes ) ), 0 ), "0", "en-US" ) & "|"
-                & FORMAT ( COALESCE ( CALCULATE ( [Reps Mês FC], ALLSELECTED ( d_Representantes ) ), 0 ), "0", "en-US" ) & "|"
-                & FORMAT ( COALESCE ( CALCULATE ( [Reps Mês CT], ALLSELECTED ( d_Representantes ) ), 0 ), "0", "en-US" ) & "|"
-                & FORMAT ( COALESCE ( CALCULATE ( [Reps Mês PT], ALLSELECTED ( d_Representantes ) ), 0 ), "0", "en-US" ) & "|"
-                & FORMAT ( COALESCE ( CALCULATE ( [Reps Mês AP], ALLSELECTED ( d_Representantes ) ), 0 ), "0", "en-US" ) & "|"
-                & FORMAT ( COALESCE ( CALCULATE ( [Reps Painel], ALLSELECTED ( d_Representantes ) ), 0 ), "0", "en-US" )
+            FORMAT ( COALESCE ( CALCULATE ( [Vendido Mês], ALLSELECTED ( d_Representantes ), _f ), 0 ), "0.00", "en-US" ) & "|"
+                & FORMAT ( COALESCE ( CALCULATE ( [CLI Mês (Cartão)], ALLSELECTED ( d_Representantes ), _f ), 0 ), "0", "en-US" ) & "|"
+                & FORMAT ( COALESCE ( CALCULATE ( [Reps Mês], ALLSELECTED ( d_Representantes ), _f ), 0 ), "0", "en-US" ) & "|"
+                & FORMAT ( COALESCE ( CALCULATE ( [Reps Mês FB], ALLSELECTED ( d_Representantes ), _f ), 0 ), "0", "en-US" ) & "|"
+                & FORMAT ( COALESCE ( CALCULATE ( [Reps Mês FC], ALLSELECTED ( d_Representantes ), _f ), 0 ), "0", "en-US" ) & "|"
+                & FORMAT ( COALESCE ( CALCULATE ( [Reps Mês CT], ALLSELECTED ( d_Representantes ), _f ), 0 ), "0", "en-US" ) & "|"
+                & FORMAT ( COALESCE ( CALCULATE ( [Reps Mês PT], ALLSELECTED ( d_Representantes ), _f ), 0 ), "0", "en-US" ) & "|"
+                & FORMAT ( COALESCE ( CALCULATE ( [Reps Mês AP], ALLSELECTED ( d_Representantes ), _f ), 0 ), "0", "en-US" ) & "|"
+                & FORMAT ( COALESCE ( CALCULATE ( [Reps Painel], ALLSELECTED ( d_Representantes ), KEEPFILTERS ( d_Representantes[Bloq central compras] = "#" ) ), 0 ), "0", "en-US" )
         // listas para o botão Filtros (contexto do visual = filtros da página + filtros aplicados pelo próprio visual)
         VAR _anos =
             CALCULATE ( CONCATENATEX ( VALUES ( d_Calendario[Ano] ), FORMAT ( d_Calendario[Ano], "0" ), "^", d_Calendario[Ano], ASC ), REMOVEFILTERS ( d_Calendario ) )

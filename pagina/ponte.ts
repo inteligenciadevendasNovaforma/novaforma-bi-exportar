@@ -11,7 +11,7 @@ import { gerarXlsxMetasRep, expandir as expandirMR, CargaRep } from "../painel-m
 import { ANTON_B64 } from "./fonte";
 
 interface CargaDia extends Omit<EntradaDia, "imagens"> { tipo: "painelDia"; svgs: { svg: string; w: number; h: number }[]; }
-// Painel Mês v1.1 / Painel Dia v1.2 mandam também periodo/filtros (rodapé do Excel); versões antigas não mandam
+// Painel Mês v1.1+ / Painel Dia v1.2+ mandam também periodo/filtros (rodapé do Excel); versões antigas não mandam
 interface CargaMes { tipo: "painelMes"; titulo: string; geradoEm: string; periodo?: string; filtros?: string; linhas: LinhaMes[]; opcoes: EntradaMes["opcoes"]; card: { svg: string; w: number; h: number } | null; svgs: { svg: string; w: number; h: number }[]; }
 // Pedido Diário: v2 (oficial) manda periodo/filtros e só tabela/dados; v1 mandava card/svgs (ignorados: o Excel sai sem imagens/topo)
 interface CargaPedido { tipo: "pedidoDiario"; versao?: number; titulo: string; geradoEm: string; periodo?: string; filtros?: string; dias: number[]; linhas: LinhaPedido[]; opcoes: EntradaPedido["opcoes"]; card?: unknown; svgs?: { svg: string; w: number; h: number }[]; }
@@ -64,7 +64,6 @@ function entregar(bytes: Uint8Array, nome: string, mime: string): void {
     $("#st").textContent = "✓"; $("#tit").textContent = "Arquivo pronto";
     $("#msg").textContent = "Se o download não começar, use o botão abaixo.";
     $("#nome").textContent = nome;
-    $("#tam").textContent = bytes.length < 1048576 ? (bytes.length / 1024).toFixed(1) + " KB" : (bytes.length / 1048576).toFixed(1) + " MB";
     ["#arq", "#bt", "#nota"].forEach(s => $(s).classList.remove("oculto"));
     history.replaceState(null, "", location.pathname);
     a.click();
@@ -143,6 +142,6 @@ function esperarCola(nome: string, mime: string, linhas: string, unidade: string
         } else if (d) {
             const b = b64u(d);
             entregar(p.get("c") === "1" ? await inflar(b) : b, nome, p.get("t") || mime);
-        } else { erro("Nenhum arquivo recebido (página v2.5; o endereço chegou com " + location.hash.length + " caracteres depois do #). Abra esta página pelo botão Exportar do painel."); }
+        } else { erro("Nenhum arquivo recebido (página v2.6). Abra esta página pelo botão Exportar do painel."); }
     } catch (e) { erro("O arquivo chegou incompleto ou passou do limite do endereço. " + (e instanceof Error ? e.message : "")); }
 })();

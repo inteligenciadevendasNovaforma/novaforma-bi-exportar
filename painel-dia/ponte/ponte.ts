@@ -42,7 +42,6 @@ function entregar(bytes: Uint8Array, nome: string, mime: string): void {
     $("#st").textContent = "✓"; $("#tit").textContent = "Arquivo pronto";
     $("#msg").textContent = "Se o download não começar, use o botão abaixo.";
     $("#nome").textContent = nome;
-    $("#tam").textContent = bytes.length < 1048576 ? (bytes.length / 1024).toFixed(1) + " KB" : (bytes.length / 1048576).toFixed(1) + " MB";
     ["#arq", "#bt", "#nota"].forEach(s => $(s).classList.remove("oculto"));
     history.replaceState(null, "", location.pathname);
     a.click();
@@ -64,6 +63,6 @@ function entregar(bytes: Uint8Array, nome: string, mime: string): void {
         } else if (d) {
             const b = b64u(d);
             entregar(p.get("c") === "1" ? await inflar(b) : b, nome, p.get("t") || mime);
-        } else { erro("Nenhum arquivo recebido (página v1.6; o endereço chegou com " + location.hash.length + " caracteres depois do #). Abra esta página pelo botão Exportar do painel."); }
+        } else { erro("Nenhum arquivo recebido. Abra esta página pelo botão Exportar do painel."); }
     } catch (e) { erro("O arquivo chegou incompleto ou passou do limite do endereço. " + (e instanceof Error ? e.message : "")); }
 })();

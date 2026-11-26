@@ -11,13 +11,13 @@
     * { box-sizing: border-box; }
 }
 .pd-vazio { margin: 4cqw; color: #667085; font-size: 2cqw; }
-.pd-topo { display: grid; grid-template-columns: 15.5% 1fr; flex: 0 0 auto; padding-top: 1cqw; }
+.pd-topo { display: grid; grid-template-columns: 15.5% 1fr; flex: 0 0 auto; padding-top: 0.6cqw; }
 .pd-kpis { padding-left: 0.2cqw; }
 .kpi { margin-bottom: 4.2cqw; }
 .kpi-r { font-family: AntonPD, Impact, "Arial Narrow", sans-serif; color: @navy; font-size: 1.6cqw; letter-spacing: 0.02em; line-height: 1.3; padding-left: 0.4cqw; }
 .kpi-v { font-family: AntonPD, Impact, "Arial Narrow", sans-serif; color: @navy; font-size: 3.5cqw; text-align: right; line-height: 1.25; padding-right: 0.6cqw; letter-spacing: 0.01em; }
 .kpi-c { color: #8A8F98; font-size: 1.35cqw; text-align: right; padding-right: 0.6cqw; letter-spacing: 0.02em; }
-.pd-medidores { display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: auto; padding-top: 3.4cqw; column-gap: 0.4cqw; }
+.pd-medidores { display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: auto; padding-top: 1.2cqw; column-gap: 0.4cqw; }
 .md { display: flex; flex-direction: column; align-items: center; margin-bottom: 0.2cqw; }
 .md svg { width: 92%; display: block; }
 .md-v { font: 700 17px Arial, sans-serif; fill: #1B1B1B; }
@@ -41,18 +41,19 @@
 .pd-tab td.vz { background: #FFD6DC; }
 
 .pd { position: relative; }
-// botões Filtros e Exportar no canto superior direito (onde já ficava o Exportar)
-.pd-acoes { position: absolute; top: 0.8cqw; right: 1cqw; z-index: 10; display: flex; gap: 0.8cqw; align-items: flex-start; }
+// botões Filtros e Exportar: faixa própria no topo (altura fixa), alinhada à direita, acima do card e dos medidores
+.pd-acoes { position: relative; z-index: 10; flex: 0 0 auto; height: 5cqw; padding: 0 1cqw; display: flex; justify-content: flex-end; align-items: center; gap: 0.8cqw; }
 .ex { position: relative; font-family: Arial, "Segoe UI", sans-serif; text-align: right; }
 .ex-btn { font: 600 1.7cqw Arial, sans-serif; color: @navy; background: #FFF; border: 0.15cqw solid @navy; border-radius: 0.5cqw; padding: 0.5cqw 1.4cqw; cursor: pointer; }
 .ex-btn:hover { background: #EAF1FA; }
-.ex-menu { margin-top: 0.5cqw; background: #FFF; border: 0.14cqw solid #C9D3E0; border-radius: 0.8cqw; box-shadow: 0 0.8cqw 2.4cqw rgba(0,51,102,.22); padding: 1.4cqw 1.6cqw; text-align: left; width: 27cqw; }
+.ex-menu { position: absolute; right: 0; top: 100%; z-index: 30; margin-top: 0.5cqw; background: #FFF; border: 0.14cqw solid #C9D3E0; border-radius: 0.8cqw; box-shadow: 0 0.8cqw 2.4cqw rgba(0,51,102,.22); padding: 1.4cqw 1.6cqw; text-align: left; width: 27cqw; }
 .ex-tit { font-size: 1.45cqw; color: #667085; margin-bottom: 0.8cqw; }
 .ex-op { display: block; font-size: 1.7cqw; color: #1B1B1B; padding: 0.5cqw 0; cursor: pointer; }
 .ex-op input { width: 1.7cqw; height: 1.7cqw; vertical-align: middle; margin: 0 0.5cqw 0 0; }
 .ex-go { margin-top: 1cqw; width: 100%; font: 600 1.7cqw Arial, sans-serif; color: #FFF; background: @navy; border: 0; border-radius: 0.6cqw; padding: 0.9cqw 0; cursor: pointer; }
-.ex-msg { margin-top: 0.5cqw; font-size: 1.4cqw; color: #1B6B3A; background: #FFF; padding: 0.3cqw 0.8cqw; border-radius: 0.4cqw; display: inline-block; max-width: 40cqw; }
+.ex-msg { position: absolute; right: 0; top: 100%; z-index: 30; width: max-content; box-shadow: 0 0.3cqw 1cqw rgba(0,51,102,.18); margin-top: 0.5cqw; font-size: 1.4cqw; color: #1B6B3A; background: #FFF; padding: 0.3cqw 0.8cqw; border-radius: 0.4cqw; display: inline-block; max-width: 40cqw; }
 .ex-msg.erro { color: #B42318; }
+.ex-menu .ex-msg { position: static; box-shadow: none; width: auto; padding: 0.3cqw 0; margin-top: 0.8cqw; }
 
 // botão Filtros (mesmo visual do Exportar; azul-marinho quando há filtro ativo)
 .fl-btn.ativo { background: @navy; color: #FFF; }
@@ -91,8 +92,9 @@
 
 .fp-dica { color: #9A3412; margin-top: 2px; }
 .fp-dica:empty { display: none; }
-// painel abaixo dos botões
-.fp { top: calc(4.4cqw + 8px); max-height: calc(100% - 4.4cqw - 16px); }
+// painel abaixo da faixa dos botões
+.fp { top: calc(5cqw + 4px); max-height: calc(100% - 5cqw - 12px); }
+.fp-nota { color: #4B5563; margin-top: 2px; }
 
 @container (max-width: 560px) {
     .fp-corpo { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }

@@ -59,7 +59,7 @@ export class Visual implements IVisual {
         this.host = options.host;
         this.raiz = el("div", "pd");
         options.element.appendChild(this.raiz);
-        this.filtros = new Filtros(this.host, this.raiz, () => this.desenhar(), () => this.settings.filtros, () => this.periodo(), "Painel Mês (visual)");
+        this.filtros = new Filtros(this.host, this.raiz, () => this.desenhar(), () => this.settings.filtros, () => this.periodo(), "Painel Mês (visual)", true);
         this.raiz.addEventListener("keydown", (ev: KeyboardEvent) => {
             if (ev.key !== "Escape") { return; }
             if (this.filtros.popAberto) { this.filtros.fechar(); ev.stopPropagation(); }
@@ -115,7 +115,7 @@ export class Visual implements IVisual {
         const cx = 95, cy = 72, R = 64, r = 40;
         const amarelo = Math.min(Math.max(this.settings.medidores.inicioAmarelo.value, 1), 98) / 100;
         const verde = Math.min(Math.max(this.settings.medidores.inicioVerde.value, amarelo * 100 + 1), 99) / 100;
-        const svg = sv("svg", { viewBox: imagem ? "0 0 190 106" : "0 0 190 84", role: "img", "aria-label": `${rotulo}: ${valor} de ${max}` });
+        const svg = sv("svg", { viewBox: imagem ? "0 0 190 106" : "0 0 190 84", role: "img", "aria-label": `${rotulo}: ${valor} de ${max} representantes ativos` });
         if (imagem) {
             svg.setAttribute("xmlns", NS); svg.setAttribute("width", "200"); svg.setAttribute("height", "112");
             svg.appendChild(sv("rect", { x: "0", y: "0", width: "190", height: "106", fill: "#FFFFFF" }));
@@ -158,6 +158,7 @@ export class Visual implements IVisual {
             return;
         }
         const c = this.cab;
+        raiz.appendChild(this.acoes()); // faixa própria dos botões, acima do card e dos medidores
         const topo = el("div", "pd-topo");
         const esq = el("div", "pd-kpis");
         esq.appendChild(el("div", "kpi kpi-vz"));
@@ -167,13 +168,12 @@ export class Visual implements IVisual {
         MEDIDORES.forEach(m => grade.appendChild(this.medidor(m.ind < 0 ? c.repsMes : c.reps[m.ind], c.repsPainel, m.rotulo)));
         topo.appendChild(grade);
         raiz.appendChild(topo);
-        raiz.appendChild(this.acoes());
         if (this.settings.titulo.mostrar.value) { raiz.appendChild(el("div", "pd-titulo", this.settings.titulo.texto.value)); }
         raiz.appendChild(this.tabela());
         if (this.filtros.popAberto) { raiz.appendChild(this.filtros.painel()); }
     }
 
-    // botões Filtros e Exportar, no canto superior direito (onde já ficava o Exportar)
+    // botões Filtros e Exportar: faixa própria no topo do visual, alinhada à direita (não sobrepõe card/medidores)
     private acoes(): HTMLElement {
         const a = el("div", "pd-acoes");
         if (this.settings.filtros.mostrarBotao.value) { a.appendChild(this.filtros.botao("ex-btn", () => { this.menuAberto = false; })); }
@@ -181,6 +181,7 @@ export class Visual implements IVisual {
         return a;
     }
 
+    // dataRef vem da medida: com Ano + Mês sem Dia é o último dia do mês (ou hoje, no mês atual) => mês inteiro
     private periodo(): string {
         const r = this.filtros.dataRef;
         return r ? `Período: ${dataBR(r.slice(0, 8) + "01")} a ${dataBR(r)}` : "";
@@ -255,7 +256,8 @@ export class Visual implements IVisual {
             m.appendChild(botao("ex-go", "Baixar Excel", () => { void this.exportarExcel(); }));
             cx.appendChild(m);
         }
-        if (this.aviso) { cx.appendChild(el("div", "ex-msg" + (this.avisoErro ? " erro" : ""), this.aviso)); }
+        // aviso: dentro do menu quando ele está aberto; senão logo abaixo do botão (por cima do conteúdo, como um aviso)
+        if (this.aviso) { (cx.querySelector(".ex-menu") || cx).appendChild(el("div", "ex-msg" + (this.avisoErro ? " erro" : ""), this.aviso)); }
         return cx;
     }
 
@@ -357,7 +359,7 @@ export class Visual implements IVisual {
         const params = new URLSearchParams({ v: "2", n: nome, c: comp, j: b64 });
         const alvo = url.replace(/#.*$/, "") + "#" + params.toString();
         this.host.launchUrl(alvo);
-        this.mostrar("Página de download aberta: " + nome + " (link de " + Math.round(alvo.length / 1024) + " mil caracteres)");
+        this.mostrar("Página de download aberta: " + nome);
     }
 
     public getFormattingModel(): powerbi.visuals.FormattingModel {

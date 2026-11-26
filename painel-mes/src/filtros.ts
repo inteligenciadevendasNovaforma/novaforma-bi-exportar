@@ -57,9 +57,11 @@ export class Filtros {
     private campoAtivo = "ano";
     private btn: HTMLButtonElement | null = null;
 
-    // cfg: cartão Formatar > Filtros; periodo: texto do rodapé do painel; medida: nome da medida (mensagem de lista vazia)
+    // cfg: cartão Formatar > Filtros; periodo: texto do rodapé do painel; medida: nome da medida (mensagem de lista vazia);
     constructor(private host: IVisualHost, private raiz: HTMLElement, private redesenhar: () => void,
-        private cfg: () => FiltrosCard, private periodo: () => string, private medida: string) { }
+        private cfg: () => FiltrosCard, private periodo: () => string, private medida: string,
+        private diaOpcional = false) { }
+    // diaOpcional (Painel Mês): Ano + Mês sem Dia já mudam o período (mês inteiro); o Dia só encurta até ele
 
     // h[ini] = dataRef (yyyy-mm-dd); h[ini + 1 + lista] = valores separados por "^"
     public lerCabecalho(h: string[], ini: number): void {
@@ -143,7 +145,7 @@ export class Filtros {
         nav.setAttribute("role", "tablist");
         nav.setAttribute("aria-label", "Campos");
         CAMPOS.forEach(cp => {
-            const b = botao("fp-campo" + (cp.id === this.campoAtivo ? " sel" : ""), cp.rotulo, () => {
+            const b = botao("fp-campo" + (cp.id === this.campoAtivo ? " sel" : ""), cp.rotulo + (this.diaOpcional && cp.id === "dia" ? " (opcional)" : ""), () => {
                 this.campoAtivo = cp.id; this.redesenhar();
                 const s = this.raiz.querySelector(".fp-busca") as HTMLInputElement | null;
                 if (s) { s.focus(); }
@@ -163,6 +165,7 @@ export class Filtros {
         const rod = el("div", "fp-rod");
         const txt = el("div", "fp-per");
         txt.appendChild(el("div", "", this.periodo()));
+        if (this.diaOpcional) { txt.appendChild(el("div", "fp-nota", "Ano + Mês: mês inteiro. Dia é opcional (do dia 1 até ele).")); }
         txt.appendChild(dica);
         this.atualizarDica(dica);
         rod.appendChild(txt);
@@ -171,11 +174,16 @@ export class Filtros {
         return p;
     }
 
-    // A [Data Ref] só muda com um Dia, um Mês e um Ano: avisa quando a seleção de datas não forma uma data
+    // Painel Dia: a [Data Ref] só muda com um Dia, um Mês e um Ano: avisa quando a seleção de datas não forma uma data.
+    // Painel Mês (diaOpcional): basta um Ano e um Mês; o Dia é opcional.
     private atualizarDica(d: HTMLElement): void {
-        const q = ["ano", "mes", "dia"].map(k => this.qtdPendente(k));
-        const algum = q.some(n => n > 0), umaData = q.every(n => n === 1);
-        d.textContent = algum && !umaData ? "Para mudar a data do painel, escolha um Dia, um Mês e um Ano." : "";
+        const [a, m, di] = ["ano", "mes", "dia"].map(k => this.qtdPendente(k));
+        const algum = a > 0 || m > 0 || di > 0;
+        if (this.diaOpcional) {
+            d.textContent = algum && !(a === 1 && m === 1 && di <= 1) ? "Para mudar o período, escolha um Ano e um Mês (o Dia é opcional)." : "";
+        } else {
+            d.textContent = algum && !(a === 1 && m === 1 && di === 1) ? "Para mudar a data do painel, escolha um Dia, um Mês e um Ano." : "";
+        }
     }
 
     private painelCampo(cp: Campo, nav: HTMLElement, mudou: () => void): HTMLElement {

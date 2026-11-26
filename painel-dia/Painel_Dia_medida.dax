@@ -1,11 +1,14 @@
-// Medida de carga do visual "Painel Dia" v1.2 (tabela @Medida, pasta "10 Painel Dia (visual)")
+// Medida de carga do visual "Painel Dia" v1.3 (tabela @Medida, pasta "10 Painel Dia (visual)")
 // Só sai linha de representante com movimento (CLI Dia > 0 ou CLI Mês); a 1ª linha sempre sai, pois carrega o cabeçalho.
 // Uma linha por representante:  nome|uf|sup|cliDia|cliMes|FB|FC|CT|PT|AP|vendidoDia
 // Na primeira linha (1º representante em ordem alfabética entre os SELECIONADOS) vai o cabeçalho, depois de "~":
-//   vendidoDia|cliDia|vendidoMes|cliMesCartao|repsDia|repsFB|repsFC|repsCT|repsPT|repsAP|repsPainel|dataRef|anos|meses|dias|supervisoes|representantes|ufs|familias|materiais
+//   vendidoDia|cliDia|vendidoMes|cliMesCartao|repsDia|repsFB|repsFC|repsCT|repsPT|repsAP|repsAtivos|dataRef|anos|meses|dias|supervisoes|representantes|ufs|familias|materiais
 //   Os 11 números (cards + 6 medidores) usam ALLSELECTED ( d_Representantes ): seguem os filtros da página, das segmentações e do
 //   botão Filtros (Supervisão, Representante, UF), como uma segmentação. Sem filtro nenhum dão o mesmo valor da v1.1 (REMOVEFILTERS).
 //   Família/Material (colunas das fatos) e a data (Data Ref) já entravam pelo contexto e continuam entrando.
+//   repsAtivos (MÁXIMO dos medidores, v1.3) = representantes ATIVOS: [Reps Painel] (Ativo SAP, código <> "#", sem VENDA)
+//   e SEM bloqueio de compras no SAP (d_Representantes[Bloq central compras] = "#", a mesma regra de [Nº representantes (ativos)]).
+//   Sem filtro: 216 (era 676 com [Reps Painel]); SUP-ES/MG: 39. Os demais números não mudaram.
 //   dataRef = yyyy-mm-dd; as 8 listas têm os valores separados por "^" (botão Filtros; cada lista ignora o filtro do próprio campo).
 // "Dia" (VENDIDO NO DIA, CLI DIA, medidores) = a [Data Ref]; "Mês" (CLI MÊS, mix, vendido no mês) = 1º dia do mês da [Data Ref] até ela.
 // A [Data Ref] só muda com UM Dia, UM Mês e UM Ano escolhidos (no botão Filtros ou em segmentações); senão continua sendo hoje.
@@ -62,7 +65,7 @@ VAR _cab =
                 & FORMAT ( COALESCE ( CALCULATE ( [Reps Dia CT], ALLSELECTED ( d_Representantes ) ), 0 ), "0", "en-US" ) & "|"
                 & FORMAT ( COALESCE ( CALCULATE ( [Reps Dia PT], ALLSELECTED ( d_Representantes ) ), 0 ), "0", "en-US" ) & "|"
                 & FORMAT ( COALESCE ( CALCULATE ( [Reps Dia AP], ALLSELECTED ( d_Representantes ) ), 0 ), "0", "en-US" ) & "|"
-                & FORMAT ( COALESCE ( CALCULATE ( [Reps Painel], ALLSELECTED ( d_Representantes ) ), 0 ), "0", "en-US" )
+                & FORMAT ( COALESCE ( CALCULATE ( [Reps Painel], ALLSELECTED ( d_Representantes ), KEEPFILTERS ( d_Representantes[Bloq central compras] = "#" ) ), 0 ), "0", "en-US" )
         // listas para o botão Filtros (contexto do visual = filtros da página + filtros aplicados pelo próprio visual)
         VAR _anos =
             CALCULATE ( CONCATENATEX ( VALUES ( d_Calendario[Ano] ), FORMAT ( d_Calendario[Ano], "0" ), "^", d_Calendario[Ano], ASC ), REMOVEFILTERS ( d_Calendario ) )
