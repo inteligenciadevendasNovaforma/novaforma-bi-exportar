@@ -1,9 +1,9 @@
 "use strict";
 // Desenho do PDF do Ranking de Representantes. Roda na PÁGINA de download (não no visual).
 // Mesmo desenho do PDF que o visual gerava até a v1.0.4: canvas 880 px de largura (escala 2) -> JPEG -> PDF montado à mão,
-// uma página por Supervisão × UF, cabeçalho azul-marinho, medalhas, barras e rodapé. Fontes Barlow embutidas (fonts.ts).
+// v1.0.7: lista contínua como na tela (várias páginas só se não couber; cabeçalho da tabela repetido), cabeçalho azul-marinho, medalhas, barras e rodapé. Fontes Barlow embutidas (fonts.ts).
 import { FONTS } from "./fonts";
-import { CargaRanking, PaginaPdf, expandir } from "./cargaRanking";
+import { CargaRanking, PaginaPdf, expandir, particionar, LIMITE_PAGINAS, PAG_H, TOPO1, TOPON, PASSO, LINHA_H, rodapeH } from "./cargaRanking";
 
 const FONT_H = '"Barlow Condensed","Bahnschrift SemiBold Condensed","Arial Narrow","Segoe UI",sans-serif';
 const FONT_B = '"Barlow","Segoe UI",system-ui,sans-serif';
@@ -44,37 +44,47 @@ function fitText(c: CanvasRenderingContext2D, text: string, maxW: number) {
     let t = text; while (t.length > 1 && c.measureText(t + "…").width > maxW) t = t.slice(0, -1); return t + "…";
 }
 
-function pageImage(pg: PaginaPdf): Imagem {
-    const W = 880, S = 2, isPos = pg.isPos, rows = pg.reps, n = rows.length, rowH = 41, pitch = 47.4, top0 = 343;
+// Desenha UMA página do ranking. rows = linhas desta página; ini = índice global da primeira (zebra contínua);
+// n/total = número desta página e total; H = altura (fixa em A4 quando há várias páginas); ultima = leva o rodapé.
+function pageImage(pg: PaginaPdf, rows: PaginaPdf["reps"], mxV: number, mxC: number, idx: number, total: number, H: number, lines: string[]): Imagem {
+    const W = 880, S = 2, isPos = pg.isPos, showV = pg.showV !== false, rowH = LINHA_H, pitch = PASSO;
+    const primeira = idx === 0, ultima = idx === total - 1, top0 = primeira ? TOPO1 : TOPON;
     const sp = (c: any, v: string) => { try { c.letterSpacing = v; } catch (e) { /* sem suporte */ } };
-    const mc = document.createElement("canvas").getContext("2d"); mc.font = "400 12px " + FONT_B;
-    const lines = wrapText(mc, pg.foot, W - 52 * 2 - 20);
-    const lastBottom = top0 + (n - 1) * pitch + rowH;
-    const H = Math.round(Math.max(946, lastBottom + 108 + (lines.length - 1) * 18));
     const cv = document.createElement("canvas"); cv.width = W * S; cv.height = H * S;
     const c = cv.getContext("2d"); c.scale(S, S); c.textBaseline = "alphabetic";
     c.fillStyle = "#F4F6F9"; c.fillRect(0, 0, W, H);
-    c.fillStyle = "#0B2A4A"; c.fillRect(0, 0, W, 292);
     c.textAlign = "left";
-    c.fillStyle = "#F2A23A"; c.font = "600 15px " + FONT_B; sp(c, "3px"); c.fillText(pg.eyebrow, 52, 62);
-    let fs = 64; sp(c, "0px"); for (; fs > 36; fs -= 2) { c.font = "700 " + fs + "px " + FONT_H; if (c.measureText(pg.title).width <= W - 104) break; }
-    c.fillStyle = "#fff"; c.fillText(pg.title, 52, 132);
-    fs = 22; for (; fs > 13; fs -= 1) { c.font = "400 " + fs + "px " + FONT_B; if (c.measureText(pg.sub).width <= W - 104) break; }
-    c.fillStyle = "#C5D3E6"; c.fillText(pg.sub, 52, 169);
-    let sx = 52;
-    pg.stats.forEach(s => {
-        const L = s.l.toUpperCase();
-        c.fillStyle = "#9FB3C8"; c.font = "500 12px " + FONT_B; sp(c, "2.4px"); c.fillText(L, sx, 210); const lw = c.measureText(L).width;
-        c.fillStyle = "#fff"; c.font = "700 30px " + FONT_H; sp(c, "0px"); c.fillText(s.v, sx, 246); const vw = c.measureText(s.v).width;
-        sx += Math.max(lw, vw) + 40;
-    });
-    const hy = 328; sp(c, "2px");
-    c.font = "600 11px " + FONT_B; c.fillStyle = "#5A6B7E"; c.fillText("POS.", 56, hy); c.fillText("REPRESENTANTE", 121, hy);
+    let hy: number;
+    if (primeira) {
+        c.fillStyle = "#0B2A4A"; c.fillRect(0, 0, W, 292);
+        c.fillStyle = "#F2A23A"; c.font = "600 15px " + FONT_B; sp(c, "3px"); c.fillText(fitText(c, pg.eyebrow, W - 104), 52, 62);
+        let fs = 64; sp(c, "0px"); for (; fs > 36; fs -= 2) { c.font = "700 " + fs + "px " + FONT_H; if (c.measureText(pg.title).width <= W - 104) break; }
+        c.fillStyle = "#fff"; c.fillText(pg.title, 52, 132);
+        fs = 22; for (; fs > 13; fs -= 1) { c.font = "400 " + fs + "px " + FONT_B; if (c.measureText(pg.sub).width <= W - 104) break; }
+        c.fillStyle = "#C5D3E6"; c.fillText(pg.sub, 52, 169);
+        let sx = 52;
+        pg.stats.forEach(s => {
+            const L = s.l.toUpperCase();
+            c.fillStyle = "#9FB3C8"; c.font = "500 12px " + FONT_B; sp(c, "2.4px"); c.fillText(L, sx, 210); const lw = c.measureText(L).width;
+            c.fillStyle = "#fff"; c.font = "700 30px " + FONT_H; sp(c, "0px"); c.fillText(s.v, sx, 246); const vw = c.measureText(s.v).width;
+            sx += Math.max(lw, vw) + 40;
+        });
+        hy = 328;
+    } else {
+        // faixa fina das páginas seguintes: mesmo azul-marinho, filtros e título
+        c.fillStyle = "#0B2A4A"; c.fillRect(0, 0, W, 100);
+        c.fillStyle = "#F2A23A"; c.font = "600 13px " + FONT_B; sp(c, "3px"); c.fillText(fitText(c, pg.eyebrow, W - 104), 52, 38);
+        let fs = 40; sp(c, "0px"); for (; fs > 24; fs -= 2) { c.font = "700 " + fs + "px " + FONT_H; if (c.measureText(pg.title).width <= W - 104) break; }
+        c.fillStyle = "#fff"; c.fillText(pg.title, 52, 78);
+        hy = 135;
+    }
+    sp(c, "2px");
+    c.font = "600 11px " + FONT_B; c.fillStyle = "#5A6B7E"; c.textAlign = "left"; c.fillText("POS.", 56, hy); c.fillText("REPRESENTANTE", 121, hy);
     c.textAlign = "right";
-    c.font = (isPos ? "600" : "700") + " 11px " + FONT_B; c.fillStyle = isPos ? "#5A6B7E" : "#0B2A4A"; c.fillText("VENDIDO (R$)", 724, hy);
-    c.font = (isPos ? "700" : "600") + " 11px " + FONT_B; c.fillStyle = isPos ? "#0B2A4A" : "#5A6B7E"; c.fillText("CLIENTES", 827, hy);
+    if (showV) { c.font = (isPos ? "600" : "700") + " 11px " + FONT_B; c.fillStyle = isPos ? "#5A6B7E" : "#0B2A4A"; c.fillText("VENDIDO (R$)", 724, hy); }
+    const cliOn = isPos || !showV;
+    c.font = (cliOn ? "700" : "600") + " 11px " + FONT_B; c.fillStyle = cliOn ? "#0B2A4A" : "#5A6B7E"; c.fillText("CLIENTES", 827, hy);
     sp(c, "0px");
-    const mxV = Math.max(...rows.map(x => x.v)), mxC = Math.max(...rows.map(x => x.q));
     rows.forEach((x, i) => {
         const y = top0 + i * pitch, top = x.pos <= 3;
         c.save();
@@ -87,14 +97,21 @@ function pageImage(pg: PaginaPdf): Imagem {
         c.fillStyle = "#E3E8EF"; roundRect(c, 121, y + 31, 409, 4, 2); c.fill();
         c.fillStyle = top ? "#F2A23A" : "#0B2A4A"; roundRect(c, 121, y + 31, Math.max(4, 409 * pct), 4, 2); c.fill();
         c.textAlign = "right";
-        c.font = isPos ? "400 16px " + FONT_B : "700 22px " + FONT_H; c.fillStyle = isPos ? "#5F6F80" : "#0E1B2B"; c.fillText(brl(x.v), 722, y + 28);
-        c.font = isPos ? "700 24px " + FONT_H : "400 16px " + FONT_B; c.fillStyle = isPos ? "#0E1B2B" : "#5F6F80"; c.fillText(int(x.q), 825, y + 28);
+        if (showV) { c.font = isPos ? "400 16px " + FONT_B : "700 22px " + FONT_H; c.fillStyle = isPos ? "#5F6F80" : "#0E1B2B"; c.fillText(brl(x.v), 722, y + 28); }
+        c.font = cliOn ? "700 24px " + FONT_H : "400 16px " + FONT_B; c.fillStyle = cliOn ? "#0E1B2B" : "#5F6F80"; c.fillText(int(x.q), 825, y + 28);
     });
-    c.textAlign = "left"; c.fillStyle = "#6B7A90"; c.font = "400 12px " + FONT_B;
-    lines.forEach((t, i) => c.fillText(t, 52, H - 42 - (lines.length - 1 - i) * 18 + 4));
+    if (ultima) { c.textAlign = "left"; c.fillStyle = "#6B7A90"; c.font = "400 12px " + FONT_B; lines.forEach((t, i) => c.fillText(t, 52, H - 42 - (lines.length - 1 - i) * 18 + 4)); }
+    if (total > 1) { c.textAlign = "center"; c.fillStyle = "#6B7A90"; c.font = "500 12px " + FONT_B; c.fillText("Página " + (idx + 1) + " de " + total, W / 2, H - 16); }
     const b64 = cv.toDataURL("image/jpeg", 0.92).split(",")[1], bin = atob(b64), jpg = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) jpg[i] = bin.charCodeAt(i);
     return { jpg, w: cv.width, h: cv.height, pw: 595.28, ph: Math.round(H * 595.28 / W * 100) / 100 };
+}
+
+// Um documento (lista contínua) -> uma ou mais páginas. Cabe numa página: altura dinâmica (como o PDF antigo); senão páginas A4.
+function docPages(pg: PaginaPdf): { rows: PaginaPdf["reps"]; mxV: number; mxC: number; lines: string[]; sizes: number[] } {
+    const mc = document.createElement("canvas").getContext("2d"); mc.font = "400 12px " + FONT_B;
+    const lines = wrapText(mc, pg.foot, 880 - 52 * 2 - 20);
+    return { rows: pg.reps, mxV: Math.max(...pg.reps.map(x => x.v)), mxC: Math.max(...pg.reps.map(x => x.q)), lines, sizes: particionar(pg.reps.length, lines.length) };
 }
 
 function buildPdf(pages: Imagem[]): Uint8Array {
@@ -120,14 +137,24 @@ function buildPdf(pages: Imagem[]): Uint8Array {
 
 // Carga do visual -> bytes do PDF (progresso opcional: página atual / total)
 export async function gerarPdfRanking(carga: CargaRanking, progresso?: (i: number, n: number) => void): Promise<Uint8Array> {
-    const paginas = expandir(carga);
-    if (!paginas.length) { throw new Error("Nada para exportar com os filtros escolhidos no painel."); }
+    const docs = expandir(carga);
+    if (!docs.length) { throw new Error("Nada para exportar com os filtros escolhidos no painel."); }
     await loadFonts();
+    const planos = docs.map(docPages);
+    const totalPag = planos.reduce((a, p) => a + p.sizes.length, 0);
+    if (totalPag > LIMITE_PAGINAS) { throw new Error("O PDF passaria de " + LIMITE_PAGINAS + " páginas. Filtre Supervisão ou UF e exporte de novo."); }
     const imgs: Imagem[] = [];
-    for (let i = 0; i < paginas.length; i++) {
-        if (progresso) progresso(i + 1, paginas.length);
-        await new Promise(r => setTimeout(r, 0));
-        imgs.push(pageImage(paginas[i]));
+    let feitas = 0;
+    for (let d = 0; d < docs.length; d++) {
+        const pl = planos[d], pg = docs[d]; let ini = 0;
+        for (let i = 0; i < pl.sizes.length; i++) {
+            if (progresso) progresso(++feitas, totalPag);
+            await new Promise(r => setTimeout(r, 0));
+            const rows = pl.rows.slice(ini, ini + pl.sizes[i]); ini += pl.sizes[i];
+            let H = PAG_H;
+            if (pl.sizes.length === 1) H = Math.round(Math.max(946, TOPO1 + (rows.length - 1) * PASSO + LINHA_H + rodapeH(pl.lines.length)));
+            imgs.push(pageImage(pg, rows, pl.mxV, pl.mxC, i, pl.sizes.length, H, pl.lines));
+        }
     }
     return buildPdf(imgs);
 }

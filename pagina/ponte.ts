@@ -27,7 +27,7 @@ interface CargaPM extends CargaPedidos { svgs?: undefined; }
 interface CargaVendas extends CargaPV { svgs?: undefined; }
 // Painel Metas | Representante v1.0: um bloco por representante (formato compacto), pelo link ou colado (k=cola, prefixo NFMR1.)
 interface CargaMR extends CargaRep { svgs?: undefined; }
-// Ranking de Representantes v1.0.5+: PDF (uma página por Supervisão × UF) desenhado aqui; pelo link ou colado (k=cola, prefixo NFRK1.)
+// Ranking de Representantes v1.0.5+: PDF desenhado aqui (v1.0.7+: lista contínua como na tela; v1.0.5/6: uma página por Supervisão × UF); pelo link ou colado (k=cola, prefixo NFRK1.)
 interface CargaRK extends CargaRanking { svgs?: undefined; }
 interface Carga extends Omit<EntradaXlsx, "imagens"> { svgs: { svg: string; w: number; h: number }[]; }
 
