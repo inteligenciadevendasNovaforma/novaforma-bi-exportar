@@ -3,7 +3,8 @@
 // Mesmo desenho do PDF que o visual gerava até a v1.0.4: canvas 880 px de largura (escala 2) -> JPEG -> PDF montado à mão,
 // v1.0.7: lista contínua como na tela (várias páginas só se não couber; cabeçalho da tabela repetido), cabeçalho azul-marinho, medalhas, barras e rodapé. Fontes Barlow embutidas (fonts.ts).
 import { FONTS } from "./fonts";
-import { CargaRanking, PaginaPdf, expandir, particionar, LIMITE_PAGINAS, PAG_H, TOPO1, TOPON, PASSO, LINHA_H, rodapeH } from "./cargaRanking";
+import { CargaRanking, PaginaPdf, expandir, particionar, LIMITE_PAGINAS, PAG_H, TOPO1, TOPON, PASSO, LINHA_H, rodapeH, alturaImagem, escalaImagem, ehIos, MSG_IMAGEM_GRANDE } from "./cargaRanking";
+import { LOGO_PATHS, LOGO_W, LOGO_H, LOGO_DX, LOGO_DY } from "./logo";
 
 const FONT_H = '"Barlow Condensed","Bahnschrift SemiBold Condensed","Arial Narrow","Segoe UI",sans-serif';
 const FONT_B = '"Barlow","Segoe UI",system-ui,sans-serif';
@@ -46,20 +47,22 @@ function fitText(c: CanvasRenderingContext2D, text: string, maxW: number) {
 
 // Desenha UMA página do ranking. rows = linhas desta página; ini = índice global da primeira (zebra contínua);
 // n/total = número desta página e total; H = altura (fixa em A4 quando há várias páginas); ultima = leva o rodapé.
-function pageImage(pg: PaginaPdf, rows: PaginaPdf["reps"], mxV: number, mxC: number, idx: number, total: number, H: number, lines: string[]): Imagem {
-    const W = 880, S = 2, isPos = pg.isPos, showV = pg.showV !== false, rowH = LINHA_H, pitch = PASSO;
+function desenharPagina(pg: PaginaPdf, rows: PaginaPdf["reps"], mxV: number, mxC: number, idx: number, total: number, H: number, lines: string[], S = 2, logo = false): HTMLCanvasElement {
+    const W = 880, isPos = pg.isPos, showV = pg.showV !== false, rowH = LINHA_H, pitch = PASSO;
     const primeira = idx === 0, ultima = idx === total - 1, top0 = primeira ? TOPO1 : TOPON;
     const sp = (c: any, v: string) => { try { c.letterSpacing = v; } catch (e) { /* sem suporte */ } };
-    const cv = document.createElement("canvas"); cv.width = W * S; cv.height = H * S;
-    const c = cv.getContext("2d"); c.scale(S, S); c.textBaseline = "alphabetic";
+    const cv = document.createElement("canvas"); cv.width = Math.floor(W * S); cv.height = Math.floor(H * S);
+    const c = cv.getContext("2d"); if (!c) throw erroImagemGrande(); c.scale(S, S); c.textBaseline = "alphabetic";
     c.fillStyle = "#F4F6F9"; c.fillRect(0, 0, W, H);
     c.textAlign = "left";
     let hy: number;
     if (primeira) {
         c.fillStyle = "#0B2A4A"; c.fillRect(0, 0, W, 292);
         c.fillStyle = "#F2A23A"; c.font = "600 15px " + FONT_B; sp(c, "3px"); c.fillText(fitText(c, pg.eyebrow, W - 104), 52, 62);
-        let fs = 64; sp(c, "0px"); for (; fs > 36; fs -= 2) { c.font = "700 " + fs + "px " + FONT_H; if (c.measureText(pg.title).width <= W - 104) break; }
+        const tw = logo ? W - 104 - LOGO_W - 40 : W - 104;
+        let fs = 64; sp(c, "0px"); for (; fs > 36; fs -= 2) { c.font = "700 " + fs + "px " + FONT_H; if (c.measureText(pg.title).width <= tw) break; }
         c.fillStyle = "#fff"; c.fillText(pg.title, 52, 132);
+        if (logo) { c.save(); c.translate(W - 52 - LOGO_W, 132 - LOGO_H); c.translate(LOGO_DX, LOGO_DY); c.fillStyle = "#fff"; LOGO_PATHS.forEach(d => c.fill(new Path2D(d))); c.restore(); }
         fs = 22; for (; fs > 13; fs -= 1) { c.font = "400 " + fs + "px " + FONT_B; if (c.measureText(pg.sub).width <= W - 104) break; }
         c.fillStyle = "#C5D3E6"; c.fillText(pg.sub, 52, 169);
         let sx = 52;
@@ -102,6 +105,13 @@ function pageImage(pg: PaginaPdf, rows: PaginaPdf["reps"], mxV: number, mxC: num
     });
     if (ultima) { c.textAlign = "left"; c.fillStyle = "#6B7A90"; c.font = "400 12px " + FONT_B; lines.forEach((t, i) => c.fillText(t, 52, H - 42 - (lines.length - 1 - i) * 18 + 4)); }
     if (total > 1) { c.textAlign = "center"; c.fillStyle = "#6B7A90"; c.font = "500 12px " + FONT_B; c.fillText("Página " + (idx + 1) + " de " + total, W / 2, H - 16); }
+    return cv;
+}
+function erroImagemGrande(): Error { const e = new Error(MSG_IMAGEM_GRANDE); e.name = "ImagemGrande"; return e; }
+
+// Uma página do PDF: desenha (escala 2) e converte em JPEG para o PDF
+function pageImage(pg: PaginaPdf, rows: PaginaPdf["reps"], mxV: number, mxC: number, idx: number, total: number, H: number, lines: string[]): Imagem {
+    const W = 880, cv = desenharPagina(pg, rows, mxV, mxC, idx, total, H, lines, 2);
     const b64 = cv.toDataURL("image/jpeg", 0.92).split(",")[1], bin = atob(b64), jpg = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) jpg[i] = bin.charCodeAt(i);
     return { jpg, w: cv.width, h: cv.height, pw: 595.28, ph: Math.round(H * 595.28 / W * 100) / 100 };
@@ -157,4 +167,23 @@ export async function gerarPdfRanking(carga: CargaRanking, progresso?: (i: numbe
         }
     }
     return buildPdf(imgs);
+}
+
+// Ranking em UMA imagem (JPEG): a lista inteira, contínua, sem páginas (mesmo desenho do PDF, com a logo no cabeçalho).
+// Escala 2 -> 1,5 -> 1 conforme o limite de canvas do navegador; se nem na escala 1 couber, avisa (erro "ImagemGrande").
+export async function gerarJpegRanking(carga: CargaRanking, progresso?: (i: number, n: number) => void): Promise<Uint8Array> {
+    const docs = expandir(carga);
+    if (!docs.length) { throw new Error("Nada para exportar com os filtros escolhidos no painel."); }
+    await loadFonts();
+    const pg = docs[0], pl = docPages(pg);
+    const S = escalaImagem(pg.reps.length, pl.lines.length, ehIos());
+    if (!S) { throw erroImagemGrande(); }
+    if (progresso) progresso(1, 1);
+    await new Promise(r => setTimeout(r, 0));
+    const H = alturaImagem(pg.reps.length, pl.lines.length);
+    let cv: HTMLCanvasElement;
+    try { cv = desenharPagina(pg, pl.rows, pl.mxV, pl.mxC, 0, 1, H, pl.lines, S, true); } catch (e) { throw erroImagemGrande(); }
+    const blob: Blob | null = await new Promise(r => { try { cv.toBlob(b => r(b), "image/jpeg", 0.92); } catch (e) { r(null); } });
+    if (!blob || blob.size < 1000) { throw erroImagemGrande(); }
+    return new Uint8Array(await blob.arrayBuffer());
 }
