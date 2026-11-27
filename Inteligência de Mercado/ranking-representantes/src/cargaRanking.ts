@@ -16,7 +16,7 @@ export interface CargaRanking {
     versao: number;
     pos: number;
     sv?: number;
-    saida?: "jpg";   // v1.0.8+: "jpg" = uma imagem única (JPEG) em vez do PDF
+    saida?: "jpg";   // v1.0.8+: "jpg" = uma imagem única (JPEG) em vez do PDF (v1.0.10: só os 50 primeiros)
     t: string;
     e?: string; s?: string; f?: string; k?: [string, string][]; r?: [number, string, number, number][];
     p?: { e: string; s: string; f: string; k: [string, string][]; r: [number, string, number, number][] }[];
@@ -50,34 +50,21 @@ export function particionar(n: number, linhas: number): number[] {
     return out;
 }
 
-// ---- imagem única (JPEG): lista contínua, sem páginas ----
-export const IMG_W = 880;                    // largura lógica (a mesma do PDF); em pixels = IMG_W x escala
-export const IMG_ESCALAS = [3, 2.5, 2, 1.5, 1];   // da mais nítida à mais leve; a página usa a maior que cabe e funciona de verdade
-export const IMG_MAX_ALTURA = 30000;         // altura máxima segura de um canvas, em pixels (Chrome/Edge/Firefox aceitam ~32000)
-export const IMG_MAX_AREA = 200000000;       // área máxima segura (pixels) em computador (limite real ~268 milhões)
-export const IMG_MAX_AREA_SAFARI = 67000000; // Safari do Mac: limite menor; a validação da página reduz mais se preciso
-export const IMG_MAX_AREA_IOS = 16700000;    // Safari do iPhone/iPad aceita bem menos
-export const IMG_QUALIDADE = 0.97;           // qualidade do JPEG
+// ---- imagem única (JPEG): só os TOP_JPEG primeiros, lista contínua, sem páginas ----
+// v1.0.10: o WhatsApp recomprime imagens grandes; por isso a imagem leva só os 50 primeiros (a lista completa fica no PDF).
+export const IMG_W = 880;                    // largura lógica (a mesma do PDF); em pixels = IMG_W x IMG_ESCALA = 1760
+export const IMG_ESCALA = 2;                 // fixa (50 linhas sempre cabem num canvas)
+export const IMG_QUALIDADE = 0.92;           // qualidade do JPEG (alvo < 2 MB)
+export const TOP_JPEG = 50;                  // quantos representantes a imagem leva
 export const alturaImagem = (n: number, linhas: number) => Math.round(Math.max(946, TOPO1 + (Math.max(1, n) - 1) * PASSO + LINHA_H + rodapeH(linhas)));
-// Escalas (da maior para a menor) em que a lista inteira cabe nos limites do navegador; vazio = não cabe nem na escala 1
-export function escalasImagem(n: number, linhas: number, area = IMG_MAX_AREA): number[] {
-    const H = alturaImagem(n, linhas);
-    return IMG_ESCALAS.filter(s => H * s <= IMG_MAX_ALTURA && IMG_W * s * H * s <= area);
+export const rodapeTop = (n: number) => "Top " + TOP_JPEG + " de " + n.toLocaleString("pt-BR") + " representantes · lista completa no PDF";
+// Lista com mais de TOP_JPEG linhas -> só as TOP_JPEG primeiras (mesma ordem da tela), "TOP 50" no cabeçalho e a linha extra no rodapé.
+// Os totais do cabeçalho (stats) continuam os da tela inteira. Idempotente: com TOP_JPEG linhas ou menos devolve o mesmo documento.
+export function limitarTop(pg: PaginaPdf): PaginaPdf {
+    const n = pg.reps.length;
+    if (n <= TOP_JPEG) return pg;
+    return { ...pg, reps: pg.reps.slice(0, TOP_JPEG), eyebrow: pg.eyebrow ? "TOP " + TOP_JPEG + " · " + pg.eyebrow : "TOP " + TOP_JPEG, foot: (pg.foot ? pg.foot + "\n" : "") + rodapeTop(n) };
 }
-// Maior escala que cabe; 0 = não cabe nem na escala 1
-export const escalaImagem = (n: number, linhas: number, area = IMG_MAX_AREA): number => escalasImagem(n, linhas, area)[0] || 0;
-// Quantos representantes cabem numa imagem única (escala 1, a mais leve) nos limites desse navegador; "linhas" = linhas do rodapé (4 = pior caso)
-export function maxRepsImagem(linhas = 4, area = IMG_MAX_AREA): number {
-    let n = Math.max(1, Math.floor((Math.min(IMG_MAX_ALTURA, area / IMG_W) - TOPO1 - LINHA_H - rodapeH(linhas)) / PASSO) + 1);
-    while (n > 0 && !escalaImagem(n, linhas, area)) n--;
-    while (escalaImagem(n + 1, linhas, area)) n++;
-    return n;
-}
-export const msgImagemGrande = (area = IMG_MAX_AREA) => "A lista é grande demais para uma imagem única (cabem até " + maxRepsImagem(4, area).toLocaleString("pt-BR") + " representantes neste navegador); use o PDF ou filtre por supervisão.";
-export const ehIos = () => typeof navigator !== "undefined" && (/iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && (navigator as any).maxTouchPoints > 1));
-const ehSafari = () => typeof navigator !== "undefined" && /Safari\//.test(navigator.userAgent) && !/Chrome|Chromium|CriOS|FxiOS|Edg|OPR|Android/.test(navigator.userAgent);
-// Área máxima de canvas conforme o navegador (iPhone/iPad < Safari do Mac < Chrome/Edge/Firefox)
-export const areaMaximaImagem = () => ehIos() ? IMG_MAX_AREA_IOS : ehSafari() ? IMG_MAX_AREA_SAFARI : IMG_MAX_AREA;
 
 export function compactar(pg: PaginaPdf, saida?: "jpg"): CargaRanking {
     return {

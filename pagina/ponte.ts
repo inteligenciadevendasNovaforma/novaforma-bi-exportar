@@ -83,8 +83,8 @@ function entregar(bytes: Uint8Array, nome: string, mime: string): void {
 // Nada sai do navegador.
 // Ranking: PDF (várias páginas se precisar) ou, com saida = "jpg", uma imagem única contínua
 const gerarRanking = (c: CargaRanking): Promise<Uint8Array> => c.saida === "jpg" ? gerarJpegRanking(c) : gerarPdfRanking(c);
-// Erro de "lista grande demais para a imagem" já vem com mensagem pronta para o usuário
-const textoErro = (e: unknown, prefixo: string): string => e instanceof Error ? (e.name === "ImagemGrande" ? e.message : prefixo + e.message) : prefixo;
+// Erro ao gerar a imagem (ErroImagem) já vem com mensagem pronta para o usuário
+const textoErro = (e: unknown, prefixo: string): string => e instanceof Error ? (e.name === "ErroImagem" ? e.message : prefixo + e.message) : prefixo;
 const PREFIXOS_COLA: { [p: string]: (carga: unknown) => Uint8Array | Promise<Uint8Array> } = {
     "NFPM1.": c => gerarXlsxPedidos(expandir(c as CargaPedidos)),
     "NFPV1.": c => gerarXlsxPainelVendas(expandirPV(c as CargaPV)),

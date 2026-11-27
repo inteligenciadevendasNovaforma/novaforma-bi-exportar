@@ -3,7 +3,7 @@
 // Mesmo desenho do PDF que o visual gerava até a v1.0.4: canvas 880 px de largura (escala 2) -> JPEG -> PDF montado à mão,
 // v1.0.7: lista contínua como na tela (várias páginas só se não couber; cabeçalho da tabela repetido), cabeçalho azul-marinho, medalhas, barras e rodapé. Fontes Barlow embutidas (fonts.ts).
 import { FONTS } from "./fonts";
-import { CargaRanking, PaginaPdf, expandir, particionar, LIMITE_PAGINAS, PAG_H, TOPO1, TOPON, PASSO, LINHA_H, rodapeH, alturaImagem, escalasImagem, areaMaximaImagem, IMG_QUALIDADE, msgImagemGrande } from "./cargaRanking";
+import { CargaRanking, PaginaPdf, expandir, particionar, limitarTop, LIMITE_PAGINAS, PAG_H, TOPO1, TOPON, PASSO, LINHA_H, rodapeH, alturaImagem, IMG_ESCALA, IMG_QUALIDADE } from "./cargaRanking";
 import { LOGO_PATHS, LOGO_W, LOGO_H, LOGO_DX, LOGO_DY } from "./logo";
 
 const FONT_H = '"Barlow Condensed","Bahnschrift SemiBold Condensed","Arial Narrow","Segoe UI",sans-serif';
@@ -55,7 +55,7 @@ function desenharPagina(pg: PaginaPdf, rows: PaginaPdf["reps"], mxV: number, mxC
     const primeira = idx === 0, ultima = idx === total - 1, top0 = primeira ? TOPO1 : TOPON;
     const sp = (c: any, v: string) => { try { c.letterSpacing = v; } catch (e) { /* sem suporte */ } };
     const cv = document.createElement("canvas"); cv.width = Math.floor(W * S); cv.height = Math.floor(H * S);
-    const c = cv.getContext("2d"); if (!c) throw erroImagemGrande(); c.scale(S, S); c.textBaseline = "alphabetic"; c.imageSmoothingEnabled = true; c.imageSmoothingQuality = "high";
+    const c = cv.getContext("2d"); if (!c) throw erroImagem(); c.scale(S, S); c.textBaseline = "alphabetic"; c.imageSmoothingEnabled = true; c.imageSmoothingQuality = "high";
     c.fillStyle = "#F4F6F9"; c.fillRect(0, 0, W, H);
     c.textAlign = "left";
     let hy: number;
@@ -110,7 +110,7 @@ function desenharPagina(pg: PaginaPdf, rows: PaginaPdf["reps"], mxV: number, mxC
     if (total > 1) { c.textAlign = "center"; c.fillStyle = "#6B7A90"; c.font = "500 12px " + FONT_B; c.fillText("Página " + (idx + 1) + " de " + total, W / 2, H - 16); }
     return cv;
 }
-function erroImagemGrande(): Error { const e = new Error(msgImagemGrande(areaMaximaImagem())); e.name = "ImagemGrande"; return e; }
+function erroImagem(): Error { const e = new Error("Não foi possível gerar a imagem neste navegador. Use o Exportar PDF."); e.name = "ErroImagem"; return e; }
 
 // Uma página do PDF: desenha (escala 2) e converte em JPEG para o PDF
 function pageImage(pg: PaginaPdf, rows: PaginaPdf["reps"], mxV: number, mxC: number, idx: number, total: number, H: number, lines: string[]): Imagem {
@@ -123,7 +123,7 @@ function pageImage(pg: PaginaPdf, rows: PaginaPdf["reps"], mxV: number, mxC: num
 // Um documento (lista contínua) -> uma ou mais páginas. Cabe numa página: altura dinâmica (como o PDF antigo); senão páginas A4.
 function docPages(pg: PaginaPdf): { rows: PaginaPdf["reps"]; mxV: number; mxC: number; lines: string[]; sizes: number[] } {
     const mc = document.createElement("canvas").getContext("2d"); mc.font = "400 12px " + FONT_B;
-    const lines = wrapText(mc, pg.foot, 880 - 52 * 2 - 20);
+    const lines = pg.foot.split("\n").reduce((a: string[], par) => a.concat(wrapText(mc, par, 880 - 52 * 2 - 20)), []);   // "\n" separa parágrafos do rodapé (ex.: linha do Top 50 da imagem)
     return { rows: pg.reps, mxV: Math.max(...pg.reps.map(x => x.v)), mxC: Math.max(...pg.reps.map(x => x.q)), lines, sizes: particionar(pg.reps.length, lines.length) };
 }
 
@@ -172,9 +172,8 @@ export async function gerarPdfRanking(carga: CargaRanking, progresso?: (i: numbe
     return buildPdf(imgs);
 }
 
-// Ranking em UMA imagem (JPEG): a lista inteira, contínua, sem páginas (mesmo desenho do PDF, com a logo no cabeçalho).
-// v1.0.9: escala-alvo 3 (depois 2,5 -> 2 -> 1,5 -> 1) conforme os limites do navegador; cada escala é VALIDADA (o canvas gigante precisa ter
-// sido desenhado de verdade e o JPEG não pode sair vazio), senão tenta a próxima. Se nem na escala 1 couber, avisa (erro "ImagemGrande").
+// Ranking em UMA imagem (JPEG): só os 50 primeiros (limitarTop), lista contínua, sem páginas (mesmo desenho do PDF, com a logo no cabeçalho).
+// v1.0.10: largura lógica 880 px, escala 2 fixa (1760 px), JPEG 0,92 (WhatsApp recomprime). Checagem simples: o canvas precisa ter sido desenhado e o JPEG não pode sair vazio.
 const perto = (a: Uint8ClampedArray, r: number, g: number, b: number) => Math.abs(a[0] - r) < 10 && Math.abs(a[1] - g) < 10 && Math.abs(a[2] - b) < 10 && a[3] === 255;
 function desenhou(cv: HTMLCanvasElement): boolean {
     try {
@@ -182,28 +181,22 @@ function desenhou(cv: HTMLCanvasElement): boolean {
         return perto(c.getImageData(3, 3, 1, 1).data, 0x0B, 0x2A, 0x4A) && perto(c.getImageData(3, cv.height - 4, 1, 1).data, 0xF4, 0xF6, 0xF9);   // cabeçalho azul-marinho e fundo no pé
     } catch (e) { return false; }
 }
-export interface OpcoesImagem { qualidade?: number; escalas?: number[]; escalaUsada?: (s: number) => void; }
+export interface OpcoesImagem { qualidade?: number; escala?: number; }
 export async function gerarJpegRanking(carga: CargaRanking, progresso?: (i: number, n: number) => void, op: OpcoesImagem = {}): Promise<Uint8Array> {
     const docs = expandir(carga);
     if (!docs.length) { throw new Error("Nada para exportar com os filtros escolhidos no painel."); }
     await loadFonts();
-    const pg = docs[0], pl = docPages(pg);
-    const escalas = op.escalas || escalasImagem(pg.reps.length, pl.lines.length, areaMaximaImagem());
-    if (!escalas.length) { throw erroImagemGrande(); }
+    const pg = limitarTop(docs[0]), pl = docPages(pg);   // o visual já manda só os 50 primeiros; cargas antigas (lista inteira) são cortadas aqui
     if (progresso) progresso(1, 1);
+    await new Promise(r => setTimeout(r, 0));
     const H = alturaImagem(pg.reps.length, pl.lines.length);
-    for (const S of escalas) {
-        await new Promise(r => setTimeout(r, 0));
-        let cv: HTMLCanvasElement | null = null;
-        try {
-            cv = desenharPagina(pg, pl.rows, pl.mxV, pl.mxC, 0, 1, H, pl.lines, S, true, true);
-            if (!desenhou(cv)) { continue; }
-            const blob: Blob | null = await new Promise(r => { try { cv.toBlob(b => r(b), "image/jpeg", op.qualidade || IMG_QUALIDADE); } catch (e) { r(null); } });
-            if (!blob || blob.size < 1000) { continue; }
-            if (op.escalaUsada) op.escalaUsada(S);
-            return new Uint8Array(await blob.arrayBuffer());
-        } catch (e) { /* tenta a próxima escala */ }
-        finally { if (cv) { cv.width = 0; cv.height = 0; } }
-    }
-    throw erroImagemGrande();
+    let cv: HTMLCanvasElement | null = null;
+    try {
+        cv = desenharPagina(pg, pl.rows, pl.mxV, pl.mxC, 0, 1, H, pl.lines, op.escala || IMG_ESCALA, true, true);
+        if (!desenhou(cv)) { throw erroImagem(); }
+        const c2 = cv;
+        const blob: Blob | null = await new Promise(r => { try { c2.toBlob(b => r(b), "image/jpeg", op.qualidade || IMG_QUALIDADE); } catch (e) { r(null); } });
+        if (!blob || blob.size < 1000) { throw erroImagem(); }
+        return new Uint8Array(await blob.arrayBuffer());
+    } finally { if (cv) { cv.width = 0; cv.height = 0; } }
 }
