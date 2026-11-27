@@ -10,19 +10,9 @@ export const COLUNA_DATA = "d_Calendario[Date]";
 
 class TituloCard extends Card {
     name = "titulo";
-    displayName = "Título";
-    mostrar = new formattingSettings.ToggleSwitch({ name: "mostrar", displayName: "Mostrar título", value: true });
-    texto = new formattingSettings.TextInput({ name: "texto", displayName: "Texto", value: "Oportunidade de Mix", placeholder: "Título" });
-    subtitulo = new formattingSettings.TextInput({ name: "subtitulo", displayName: "Subtítulo", value: "Representantes sem venda por família de produto", placeholder: "Subtítulo" });
-    slices = [this.mostrar, this.texto, this.subtitulo];
-}
-
-class CabecalhoCard extends Card {
-    name = "cabecalho";
-    displayName = "Cabeçalho";
-    mostrar = new formattingSettings.ToggleSwitch({ name: "mostrar", displayName: "Mostrar faixa azul com logo", value: true });
-    cor = new formattingSettings.ColorPicker({ name: "cor", displayName: "Cor da faixa", value: { value: "#0B2A4A" } });
-    slices = [this.mostrar, this.cor];
+    displayName = "Título do arquivo exportado";
+    texto = new formattingSettings.TextInput({ name: "texto", displayName: "Título (planilha Excel)", value: "Oportunidade de Mix", placeholder: "Título" });
+    slices = [this.texto];
 }
 
 class FundoCard extends Card {
@@ -52,9 +42,8 @@ class ExportacaoCard extends Card {
 
 export class VisualSettings extends Model {
     titulo = new TituloCard();
-    cabecalho = new CabecalhoCard();
     fundo = new FundoCard();
     periodoCfg = new PeriodoCard();
     exportacao = new ExportacaoCard();
-    cards = [this.titulo, this.cabecalho, this.fundo, this.periodoCfg, this.exportacao];
+    cards = [this.titulo, this.fundo, this.periodoCfg, this.exportacao];
 }

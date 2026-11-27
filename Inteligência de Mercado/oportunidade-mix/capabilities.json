@@ -76,45 +76,12 @@
             }
         },
         "titulo": {
-            "displayName": "Título",
+            "displayName": "Título do arquivo exportado",
             "properties": {
-                "mostrar": {
-                    "displayName": "Mostrar título",
-                    "type": {
-                        "bool": true
-                    }
-                },
                 "texto": {
-                    "displayName": "Texto",
+                    "displayName": "Título (planilha Excel)",
                     "type": {
                         "text": true
-                    }
-                },
-                "subtitulo": {
-                    "displayName": "Subtítulo",
-                    "type": {
-                        "text": true
-                    }
-                }
-            }
-        },
-        "cabecalho": {
-            "displayName": "Cabeçalho",
-            "properties": {
-                "mostrar": {
-                    "displayName": "Mostrar faixa azul com logo",
-                    "type": {
-                        "bool": true
-                    }
-                },
-                "cor": {
-                    "displayName": "Cor da faixa",
-                    "type": {
-                        "fill": {
-                            "solid": {
-                                "color": true
-                            }
-                        }
                     }
                 }
             }

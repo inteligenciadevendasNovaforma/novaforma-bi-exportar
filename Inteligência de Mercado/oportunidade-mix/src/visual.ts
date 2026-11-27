@@ -1,5 +1,5 @@
 "use strict";
-// Oportunidade de Mix (NovaForma) v1.0.0.0 — 10º visual do Desempenho Venda.
+// Oportunidade de Mix (NovaForma) v1.0.1.0 — 10º visual do Desempenho Venda.
 // Réplica (desenho parecido, padrão NovaForma) do dashboard "Oportunidade de Mix por Representante": 5 colunas por família (FB, FC, PT, AP, CT)
 // com os representantes SEM pedido válido da família no período; filtros de período (atalhos + intervalo), Supervisão, UF e busca;
 // ordenação A–Z, UF e maior valor vendido nos últimos 30 dias; ficha do representante; "Sobre a base"; alerta de cobertura;
@@ -13,7 +13,6 @@ import { VisualSettings, COLUNA_DATA } from "./settings";
 import { lerCarga, conferir, Cabecalho, Formato } from "./dados";
 import { ATALHOS, Preset, rotuloPreset, hojeSP, intervalo, validar, dataBR } from "./periodo";
 import { FAMILIAS, RepMix, EntradaMix, compactar, paraBase64, diasSem, mixDe, PREFIXO_COLA } from "./xlsxMix";
-import { LOGO_SVG } from "./logo";
 
 import IVisual = powerbi.extensibility.visual.IVisual;
 import VisualConstructorOptions = powerbi.extensibility.visual.VisualConstructorOptions;
@@ -64,7 +63,6 @@ function lerAlvo(texto: string): Alvo | null {
 export class Visual implements IVisual {
     private host: IVisualHost;
     private raiz: HTMLElement;
-    private cabEl: HTMLElement;
     private barra: HTMLElement;
     private sub: HTMLElement;
     private quadro: HTMLElement;
@@ -109,11 +107,10 @@ export class Visual implements IVisual {
     constructor(options: VisualConstructorOptions) {
         this.host = options.host;
         this.raiz = el("div", "om");
-        this.cabEl = el("header", "om-cab");
         this.barra = el("div", "om-barra");
         this.sub = el("div", "om-sub");
         this.quadro = el("div", "om-quadro");
-        [this.cabEl, this.barra, this.sub, this.quadro].forEach(x => this.raiz.appendChild(x));
+        [this.barra, this.sub, this.quadro].forEach(x => this.raiz.appendChild(x));
         options.element.appendChild(this.raiz);
         const car = el("div", "om-vazio", "Carregando…");
         car.setAttribute("role", "status");
@@ -229,33 +226,10 @@ export class Visual implements IVisual {
         const s = this.settings;
         this.raiz.style.background = s.fundo.mostrar.value ? s.fundo.cor.value.value : "transparent";
         this.raiz.classList.toggle("sem-fundo", !s.fundo.mostrar.value);
-        this.desenharCab();
         this.desenharBarra();
         this.desenharSub();
         this.desenharQuadro();
         this.desenharCamadas();
-    }
-
-    private desenharCab(): void {
-        const s = this.settings, c = this.cabEl;
-        while (c.firstChild) { c.removeChild(c.firstChild); }
-        const faixa = s.cabecalho.mostrar.value;
-        c.className = "om-cab" + (faixa ? "" : " clara");
-        c.style.background = faixa ? s.cabecalho.cor.value.value : "transparent";
-        if (!faixa && !s.titulo.mostrar.value) { c.hidden = true; return; }
-        c.hidden = false;
-        const marca = el("div", "om-marca");
-        if (faixa) { const lg = el("div", "om-logo-box"); setHtml(lg, LOGO_SVG); marca.appendChild(lg); marca.appendChild(el("span", "om-sep")); }
-        if (s.titulo.mostrar.value) {
-            const tt = el("div", "om-tits");
-            tt.appendChild(el("h2", "om-titulo", s.titulo.texto.value || "Oportunidade de Mix"));
-            if (s.titulo.subtitulo.value) { tt.appendChild(el("p", "om-subtitulo", s.titulo.subtitulo.value)); }
-            marca.appendChild(tt);
-        }
-        c.appendChild(marca);
-        const sb = botao("om-btn om-sobre", "Sobre a base", () => this.abrirSobre());
-        sb.setAttribute("aria-haspopup", "dialog");
-        c.appendChild(sb);
     }
 
     private desenharBarra(): void {
@@ -286,11 +260,9 @@ export class Visual implements IVisual {
         acoes.appendChild(bus);
         acoes.appendChild(this.botaoFiltros());
         if (this.settings.exportacao.mostrarBotao.value) { acoes.appendChild(this.menuExportar()); }
-        if (!this.settings.cabecalho.mostrar.value && !this.settings.titulo.mostrar.value) {
-            const sb = botao("om-btn", "Sobre a base", () => this.abrirSobre());
-            sb.setAttribute("aria-haspopup", "dialog");
-            acoes.appendChild(sb);
-        }
+        const sb = botao("om-btn", "Sobre a base", () => this.abrirSobre());
+        sb.setAttribute("aria-haspopup", "dialog");
+        acoes.appendChild(sb);
         b.appendChild(acoes);
     }
 

@@ -4,7 +4,7 @@
     "displayName": "Oportunidade de Mix (NovaForma)",
     "guid": "opMixAF5B0598",
     "visualClassName": "Visual",
-    "version": "1.0.0.0",
+    "version": "1.0.1.0",
     "description": "Oportunidade de Mix: representantes sem pedido valido por familia (FB, FC, PT, AP, CT) no periodo, com ficha do representante, filtros de periodo, Supervisao, UF e busca, e exportacao para Excel pela pagina de download",
     "supportUrl": "https://novaforma.example",
     "gitHubUrl": ""
