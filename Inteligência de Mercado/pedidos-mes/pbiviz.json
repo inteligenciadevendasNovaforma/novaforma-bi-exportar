@@ -4,7 +4,7 @@
     "displayName": "Pedidos Mês (NovaForma)",
     "guid": "pdMes5BAEC386",
     "visualClassName": "Visual",
-    "version": "1.1.1.0",
+    "version": "1.1.2.0",
     "description": "Pedidos Mes: vendido do mes por representante x cliente x familia comercial (aba PEDIDOS MES); botao Filtros (filtra a pagina) e exportacao para Excel igual a aba",
     "supportUrl": "https://novaforma.example",
     "gitHubUrl": ""

@@ -4,7 +4,7 @@
     "displayName": "Painel Metas | Representante (NovaForma)",
     "guid": "pnMetasRep9FE207CA",
     "visualClassName": "Visual",
-    "version": "1.1.1.0",
+    "version": "1.1.2.0",
     "description": "Painel Metas | Representante (Data do APP): um bloco por representante com KPIs de clientes e tabela por familia (aba (Data do APP) PAINEL METAS | Re); botao Filtros (filtra a pagina) e exportacao para Excel igual a aba",
     "supportUrl": "https://novaforma.example",
     "gitHubUrl": ""

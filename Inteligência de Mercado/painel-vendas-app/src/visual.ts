@@ -2,7 +2,7 @@
 // Painel de Vendas (NovaForma) v1.1 (sem Ano/Mês/Dia no botão Filtros): réplica da aba (Data Aprovação | Data APP) EVOLUÇÃO VENDA ("PAINEL DE VENDAS - DIA"):
 // vendido, faturado (3 meses), carteira em aberto, clientes (3 meses) e mix do mês atual por representante.
 // O mesmo código atende os dois visuais; só src/config.ts (regra, medida, nomes) muda entre eles.
-// Botão Filtros (filtra a página) e Exportar (Excel igual à aba: download direto, página de download pelo link ou
+// Botão Filtros (filtra a página) e Exportar (Excel igual à aba: página de download pelo link ou
 // área de transferência + página "Colar dados" quando a tabela não cabe no link).
 import powerbi from "powerbi-visuals-api";
 import { FormattingSettingsService } from "powerbi-visuals-utils-formattingmodel";
@@ -329,22 +329,13 @@ export class Visual implements IVisual {
         const url = (ex.urlPagina.value || "").trim();
         const entrada = this.entrada();
         try {
-            // 1) download direto pelo Power BI (Desktop e serviço com a exportação liberada pelo administrador): arquivo completo
-            let permitido = false;
-            try { permitido = (await this.host.downloadService.exportStatus()) === powerbi.PrivilegeStatus.Allowed; } catch { permitido = false; }
-            if (permitido) {
-                this.mostrar("Gerando Excel…");
-                const r = await this.host.downloadService.exportVisualsContentExtended(paraBase64(gerarXlsxPainelVendas(entrada)), nome, "base64", "Exportação do " + CONFIG.nomeVisual + " para Excel");
-                this.mostrar(r && (r as { downloadCompleted?: boolean }).downloadCompleted === false ? "Download cancelado." : "Excel exportado: " + nome);
-                return;
-            }
-            // 2) página de download: dados no link quando cabem; senão pela área de transferência
+            // 1) página de download (sempre pelo link): dados no link quando cabem; senão pela área de transferência
             if (ex.usarPagina.value && /^https:\/\//i.test(url)) { await this.abrirPaginaDownload(url, nome, entrada); return; }
-            // 3) sem página: tenta o download do navegador (funciona fora do iframe restrito do Power BI)
+            // 2) sem página (opção desligada no Formatar): tenta o download do navegador (funciona fora do iframe restrito do Power BI)
             const a = document.createElement("a");
             a.href = URL.createObjectURL(new Blob([gerarXlsxPainelVendas(entrada) as BlobPart], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
             a.download = nome; this.raiz.appendChild(a); a.click(); this.raiz.removeChild(a);
-            this.mostrar("Download direto (exportação do Power BI não liberada pelo administrador). Se não baixar, use Copiar tabela.");
+            this.mostrar("Baixando pelo navegador (link de download desligado no Formatar). Se não baixar, use Copiar tabela.");
         } catch (e) { this.mostrar("Erro ao exportar: " + (e instanceof Error ? e.message : String(e)), true); }
     }
 

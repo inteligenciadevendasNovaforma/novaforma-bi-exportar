@@ -4,7 +4,7 @@
     "displayName": "Painel Vendas (Data Aprovação) (NovaForma)",
     "guid": "pvAprov6CBFD497",
     "visualClassName": "Visual",
-    "version": "1.1.1.0",
+    "version": "1.1.2.0",
     "description": "Painel de Vendas (Data Aprovacao): vendido, faturado, carteira, clientes e mix por representante (aba (Data Aprovacao) EVOLUCAO VENDA); botao Filtros (filtra a pagina) e exportacao para Excel igual a aba",
     "supportUrl": "https://novaforma.example",
     "gitHubUrl": ""
