@@ -1,0 +1,128 @@
+// =====================================================================
+// Medida unica do visual "Ranking de Representantes" (v1.0.3.0)
+// Campos do visual (somente 3):
+//   Representante -> SalesHierarchySet[Cod_Representante]
+//   Familia       -> MaterialsSet[Desc_Familia]
+//   Linha         -> [Ranking Linha]
+// Nome, supervisao, UF, periodo e totais vem de dentro da medida,
+// entao nao ha como ligar o campo errado. Apague a medida [Ranking Meta].
+// Texto (separador |): cod|nome|sup|uf|fam|v0|v1|c0|c1|cr0|cr1|cg0|cg1|t0|t1|ini0|fim0|ini1|fim1|parcial
+// =====================================================================
+Ranking Linha =
+VAR Rep = SELECTEDVALUE ( SalesHierarchySet[Cod_Representante] )
+VAR Nome = COALESCE ( CALCULATE ( SELECTEDVALUE ( SalesHierarchySet[Nome_Representante], MIN ( SalesHierarchySet[Nome_Representante] ) ), SalesHierarchySet[Cod_Supervisao] <> "OPER.INTERNA" ), Rep )
+VAR Sup = COALESCE ( CALCULATE ( SELECTEDVALUE ( SalesHierarchySet[Cod_Supervisao], MIN ( SalesHierarchySet[Cod_Supervisao] ) ), SalesHierarchySet[Cod_Supervisao] <> "OPER.INTERNA" ), "Não informado" )
+VAR UF = COALESCE ( CALCULATE ( SELECTEDVALUE ( SalesHierarchySet[UF Representante], MIN ( SalesHierarchySet[UF Representante] ) ), SalesHierarchySet[Cod_Supervisao] <> "OPER.INTERNA" ), "Não informado" )
+VAR Fam = COALESCE ( SELECTEDVALUE ( MaterialsSet[Desc_Familia], MIN ( MaterialsSet[Desc_Familia] ) ), "Não informado" )
+VAR DataRef = [Data Referência Selecionada]
+VAR Ini0 = DATE ( YEAR ( DataRef ), MONTH ( DataRef ), 1 )
+VAR Fim0 = EDATE ( Ini0, 1 )
+VAR Ini1 = EDATE ( Ini0, -1 )
+VAR Fim1 = Ini0
+VAR V0 =
+    CALCULATE (
+        SUM ( SoldDocumentsSet[Vlr_Produto] ),
+        KEEPFILTERS ( ISBLANK ( SoldDocumentsSet[Mot_Recusa] ) ),
+        KEEPFILTERS ( SalesHierarchySet[Cod_Supervisao] <> "OPER.INTERNA" ),
+        SoldDocumentsSet[Data_Pedido] >= Ini0,
+        SoldDocumentsSet[Data_Pedido] < Fim0
+    )
+VAR V1 =
+    CALCULATE (
+        SUM ( SoldDocumentsSet[Vlr_Produto] ),
+        KEEPFILTERS ( ISBLANK ( SoldDocumentsSet[Mot_Recusa] ) ),
+        KEEPFILTERS ( SalesHierarchySet[Cod_Supervisao] <> "OPER.INTERNA" ),
+        SoldDocumentsSet[Data_Pedido] >= Ini1,
+        SoldDocumentsSet[Data_Pedido] < Fim1
+    )
+VAR C0 =
+    CALCULATE (
+        DISTINCTCOUNT ( SoldDocumentsSet[Cod_Cliente] ),
+        KEEPFILTERS ( ISBLANK ( SoldDocumentsSet[Mot_Recusa] ) ),
+        KEEPFILTERS ( SalesHierarchySet[Cod_Supervisao] <> "OPER.INTERNA" ),
+        SoldDocumentsSet[Data_Pedido] >= Ini0,
+        SoldDocumentsSet[Data_Pedido] < Fim0
+    )
+VAR C1 =
+    CALCULATE (
+        DISTINCTCOUNT ( SoldDocumentsSet[Cod_Cliente] ),
+        KEEPFILTERS ( ISBLANK ( SoldDocumentsSet[Mot_Recusa] ) ),
+        KEEPFILTERS ( SalesHierarchySet[Cod_Supervisao] <> "OPER.INTERNA" ),
+        SoldDocumentsSet[Data_Pedido] >= Ini1,
+        SoldDocumentsSet[Data_Pedido] < Fim1
+    )
+VAR CR0 =
+    CALCULATE (
+        DISTINCTCOUNT ( SoldDocumentsSet[Cod_Cliente] ),
+        KEEPFILTERS ( ISBLANK ( SoldDocumentsSet[Mot_Recusa] ) ),
+        KEEPFILTERS ( SalesHierarchySet[Cod_Supervisao] <> "OPER.INTERNA" ),
+        SoldDocumentsSet[Data_Pedido] >= Ini0,
+        SoldDocumentsSet[Data_Pedido] < Fim0,
+        REMOVEFILTERS ( MaterialsSet )
+    )
+VAR CR1 =
+    CALCULATE (
+        DISTINCTCOUNT ( SoldDocumentsSet[Cod_Cliente] ),
+        KEEPFILTERS ( ISBLANK ( SoldDocumentsSet[Mot_Recusa] ) ),
+        KEEPFILTERS ( SalesHierarchySet[Cod_Supervisao] <> "OPER.INTERNA" ),
+        SoldDocumentsSet[Data_Pedido] >= Ini1,
+        SoldDocumentsSet[Data_Pedido] < Fim1,
+        REMOVEFILTERS ( MaterialsSet )
+    )
+VAR T0 =
+    CALCULATE (
+        DISTINCTCOUNT ( SoldDocumentsSet[Cod_Cliente] ),
+        KEEPFILTERS ( ISBLANK ( SoldDocumentsSet[Mot_Recusa] ) ),
+        SoldDocumentsSet[Data_Pedido] >= Ini0,
+        SoldDocumentsSet[Data_Pedido] < Fim0,
+        REMOVEFILTERS ( SalesHierarchySet ),
+        REMOVEFILTERS ( MaterialsSet ),
+        SalesHierarchySet[Cod_Supervisao] <> "OPER.INTERNA",
+        NOT ISBLANK ( SalesHierarchySet[Cod_Representante] )
+    )
+VAR T1 =
+    CALCULATE (
+        DISTINCTCOUNT ( SoldDocumentsSet[Cod_Cliente] ),
+        KEEPFILTERS ( ISBLANK ( SoldDocumentsSet[Mot_Recusa] ) ),
+        SoldDocumentsSet[Data_Pedido] >= Ini1,
+        SoldDocumentsSet[Data_Pedido] < Fim1,
+        REMOVEFILTERS ( SalesHierarchySet ),
+        REMOVEFILTERS ( MaterialsSet ),
+        SalesHierarchySet[Cod_Supervisao] <> "OPER.INTERNA",
+        NOT ISBLANK ( SalesHierarchySet[Cod_Representante] )
+    )
+VAR CG0 =
+    CALCULATE (
+        DISTINCTCOUNT ( SoldDocumentsSet[Cod_Cliente] ),
+        KEEPFILTERS ( ISBLANK ( SoldDocumentsSet[Mot_Recusa] ) ),
+        KEEPFILTERS ( SalesHierarchySet[Cod_Supervisao] <> "OPER.INTERNA" ),
+        SoldDocumentsSet[Data_Pedido] >= Ini0,
+        SoldDocumentsSet[Data_Pedido] < Fim0,
+        REMOVEFILTERS ( MaterialsSet ),
+        ALLEXCEPT ( SalesHierarchySet, SalesHierarchySet[Cod_Supervisao], SalesHierarchySet[UF Representante] )
+    )
+VAR CG1 =
+    CALCULATE (
+        DISTINCTCOUNT ( SoldDocumentsSet[Cod_Cliente] ),
+        KEEPFILTERS ( ISBLANK ( SoldDocumentsSet[Mot_Recusa] ) ),
+        KEEPFILTERS ( SalesHierarchySet[Cod_Supervisao] <> "OPER.INTERNA" ),
+        SoldDocumentsSet[Data_Pedido] >= Ini1,
+        SoldDocumentsSet[Data_Pedido] < Fim1,
+        REMOVEFILTERS ( MaterialsSet ),
+        ALLEXCEPT ( SalesHierarchySet, SalesHierarchySet[Cod_Supervisao], SalesHierarchySet[UF Representante] )
+    )
+RETURN
+    IF (
+        NOT ISBLANK ( Rep ) && Sup <> "OPER.INTERNA"
+            && ( COALESCE ( V0, 0 ) <> 0 || COALESCE ( V1, 0 ) <> 0 || COALESCE ( C0, 0 ) <> 0 || COALESCE ( C1, 0 ) <> 0 ),
+        SUBSTITUTE ( Rep, "|", " " ) & "|" & SUBSTITUTE ( Nome, "|", " " ) & "|" & SUBSTITUTE ( Sup, "|", " " ) & "|"
+            & SUBSTITUTE ( UF, "|", " " ) & "|" & SUBSTITUTE ( Fam, "|", " " ) & "|"
+            & FORMAT ( COALESCE ( V0, 0 ), "0.00", "en-US" ) & "|" & FORMAT ( COALESCE ( V1, 0 ), "0.00", "en-US" ) & "|"
+            & FORMAT ( COALESCE ( C0, 0 ), "0", "en-US" ) & "|" & FORMAT ( COALESCE ( C1, 0 ), "0", "en-US" ) & "|"
+            & FORMAT ( COALESCE ( CR0, 0 ), "0", "en-US" ) & "|" & FORMAT ( COALESCE ( CR1, 0 ), "0", "en-US" ) & "|"
+            & FORMAT ( COALESCE ( CG0, 0 ), "0", "en-US" ) & "|" & FORMAT ( COALESCE ( CG1, 0 ), "0", "en-US" ) & "|"
+            & FORMAT ( COALESCE ( T0, 0 ), "0", "en-US" ) & "|" & FORMAT ( COALESCE ( T1, 0 ), "0", "en-US" ) & "|"
+            & FORMAT ( Ini0, "yyyymmdd", "en-US" ) & "|" & FORMAT ( DataRef, "yyyymmdd", "en-US" ) & "|"
+            & FORMAT ( Ini1, "yyyymmdd", "en-US" ) & "|" & FORMAT ( EOMONTH ( DataRef, -1 ), "yyyymmdd", "en-US" ) & "|"
+            & IF ( DataRef < EOMONTH ( DataRef, 0 ), "1", "0" )
+    )

@@ -17,6 +17,8 @@ O Pedidos Mês tem milhares de linhas e não cabe no link. Ordem das tentativas 
 
 O botão **Copiar tabela** copia a tabela em texto com tabulações, no layout da aba, para colar direto no Excel.
 
+**Ranking de Representantes (PDF):** o botão **Exportar PDF** manda os dados do ranking pelo link (ou pela área de transferência, prefixo `NFRK1.`, com `#k=cola`) e a página desenha o PDF (uma página por Supervisão × UF, até 60) no navegador e baixa.
+
 A página é única e atende todos os visuais. O tipo de arquivo vem no campo `tipo` da carga. Cargas antigas continuam aceitas.
 
 ## Publicar a página
@@ -29,4 +31,4 @@ O endereço é configurado em cada visual, em Formatar > Exportação > "Endere�
 - `download-page/` página publicada (um único `index.html`, já com o código embutido)
 - `pagina/` código-fonte da página (`ponte.ts`, `template.html`, fonte). Para gerar de novo: `pagina/build.sh`
 - `Inteligência de Mercado/dist/` visuais empacotados (`.pbiviz`)
-- Em `Inteligência de Mercado/`: `painel-dia/`, `painel-mes/`, `painel-metas/`, `painel-metas-rep/`, `painel-vendas-aprovacao/`, `painel-vendas-app/`, `pedido-diario/`, `pedidos-mes/`, `reps-sem-pedidos/`, `visual/` código-fonte de cada visual (`npm i && npx pbiviz package`) e a medida DAX
+- Em `Inteligência de Mercado/`: `painel-dia/`, `painel-mes/`, `painel-metas/`, `painel-metas-rep/`, `painel-vendas-aprovacao/`, `painel-vendas-app/`, `pedido-diario/`, `pedidos-mes/`, `ranking-representantes/`, `reps-sem-pedidos/`, `visual/` código-fonte de cada visual (`npm i && npx pbiviz package`) e a medida DAX

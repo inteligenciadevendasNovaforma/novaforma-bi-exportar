@@ -1,13 +1,15 @@
-// Roda na página de download: recebe os dados (pequenos) pelo link, monta o .xlsx e baixa.
-import { gerarXlsx, EntradaXlsx } from "../visual/src/xlsx";
-import { gerarXlsxDia, EntradaDia } from "../painel-dia/src/xlsxDia";
-import { gerarXlsxMes, EntradaMes, LinhaMes } from "../painel-mes/src/xlsxMes";
-import { gerarXlsxPedido, EntradaPedido, LinhaPedido } from "../pedido-diario/src/xlsxPedido";
-import { gerarXlsxReps, EntradaReps } from "../reps-sem-pedidos/src/xlsxReps";
-import { gerarXlsxMetas, EntradaMetas } from "../painel-metas/src/xlsxMetas";
-import { gerarXlsxPedidos, expandir, CargaPedidos } from "../pedidos-mes/src/xlsxPedidos";
-import { gerarXlsxPainelVendas, expandir as expandirPV, CargaPV } from "../painel-vendas-aprovacao/src/xlsxPainelVendas";
-import { gerarXlsxMetasRep, expandir as expandirMR, CargaRep } from "../painel-metas-rep/src/xlsxMetasRep";
+// Roda na página de download: recebe os dados (pequenos) pelo link, monta o .xlsx (ou o PDF do Ranking) e baixa.
+import { gerarXlsx, EntradaXlsx } from "../Inteligência de Mercado/visual/src/xlsx";
+import { gerarXlsxDia, EntradaDia } from "../Inteligência de Mercado/painel-dia/src/xlsxDia";
+import { gerarXlsxMes, EntradaMes, LinhaMes } from "../Inteligência de Mercado/painel-mes/src/xlsxMes";
+import { gerarXlsxPedido, EntradaPedido, LinhaPedido } from "../Inteligência de Mercado/pedido-diario/src/xlsxPedido";
+import { gerarXlsxReps, EntradaReps } from "../Inteligência de Mercado/reps-sem-pedidos/src/xlsxReps";
+import { gerarXlsxMetas, EntradaMetas } from "../Inteligência de Mercado/painel-metas/src/xlsxMetas";
+import { gerarXlsxPedidos, expandir, CargaPedidos } from "../Inteligência de Mercado/pedidos-mes/src/xlsxPedidos";
+import { gerarXlsxPainelVendas, expandir as expandirPV, CargaPV } from "../Inteligência de Mercado/painel-vendas-aprovacao/src/xlsxPainelVendas";
+import { gerarXlsxMetasRep, expandir as expandirMR, CargaRep } from "../Inteligência de Mercado/painel-metas-rep/src/xlsxMetasRep";
+import { gerarPdfRanking } from "../Inteligência de Mercado/ranking-representantes/src/pdfRanking";
+import { CargaRanking } from "../Inteligência de Mercado/ranking-representantes/src/cargaRanking";
 import { ANTON_B64 } from "./fonte";
 import { inflarXlsxComLimite, validarXlsxBytes, MAX_COMPRESSED_XLSX_BYTES } from "./xlsxBytes";
 
@@ -25,8 +27,12 @@ interface CargaPM extends CargaPedidos { svgs?: undefined; }
 interface CargaVendas extends CargaPV { svgs?: undefined; }
 // Painel Metas | Representante v1.0: um bloco por representante (formato compacto), pelo link ou colado (k=cola, prefixo NFMR1.)
 interface CargaMR extends CargaRep { svgs?: undefined; }
+// Ranking de Representantes v1.0.5+: PDF (uma página por Supervisão × UF) desenhado aqui; pelo link ou colado (k=cola, prefixo NFRK1.)
+interface CargaRK extends CargaRanking { svgs?: undefined; }
 interface Carga extends Omit<EntradaXlsx, "imagens"> { svgs: { svg: string; w: number; h: number }[]; }
 
+const XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+const PDF = "application/pdf";
 const $ = (s: string): HTMLElement => document.querySelector(s) as HTMLElement;
 const erro = (m: string): void => {
     $("#st").textContent = "!"; $("#st").classList.add("erro");
@@ -71,17 +77,19 @@ function entregar(bytes: Uint8Array, nome: string, mime: string): void {
     a.click();
 }
 
-// Tabelas grandes (Pedidos Mês, Painel de Vendas, Painel Metas | Representante): o visual copia os dados ("NFPM1.", "NFPV1." ou "NFMR1." + base64url do deflate-raw)
+// Tabelas grandes (Pedidos Mês, Painel de Vendas, Painel Metas | Representante, Ranking em PDF): o visual copia os dados ("NFPM1.", "NFPV1.", "NFMR1." ou "NFRK1." + base64url do deflate-raw)
 // e abre a página com k=cola. A página pede para colar (Ctrl+V ou botão Colar dados) e monta o Excel com o texto colado.
 // Nada sai do navegador.
-const PREFIXOS_COLA: { [p: string]: (carga: unknown) => Uint8Array } = {
+const PREFIXOS_COLA: { [p: string]: (carga: unknown) => Uint8Array | Promise<Uint8Array> } = {
     "NFPM1.": c => gerarXlsxPedidos(expandir(c as CargaPedidos)),
     "NFPV1.": c => gerarXlsxPainelVendas(expandirPV(c as CargaPV)),
-    "NFMR1.": c => gerarXlsxMetasRep(expandirMR(c as CargaRep))
+    "NFMR1.": c => gerarXlsxMetasRep(expandirMR(c as CargaRep)),
+    "NFRK1.": c => gerarPdfRanking(c as CargaRanking)
 };
 function esperarCola(nome: string, mime: string, linhas: string, unidade: string): void {
     $("#st").textContent = "⇩"; $("#tit").textContent = "Cole os dados do painel";
-    $("#msg").textContent = "A tabela" + (linhas ? " (" + Number(linhas).toLocaleString("pt-BR") + " " + (unidade || "linhas") + ")" : "") + " é grande demais para o link e foi copiada pelo painel. Clique em Colar dados ou pressione Ctrl+V nesta página.";
+    const pdf = mime === PDF;
+    $("#msg").textContent = (pdf ? "O ranking" : "A tabela") + (linhas ? " (" + Number(linhas).toLocaleString("pt-BR") + " " + (unidade || "linhas") + ")" : "") + " é grande demais para o link e foi " + (pdf ? "copiado" : "copiada") + " pelo painel. Clique em Colar dados ou pressione Ctrl+V nesta página.";
     const bt = $("#cola") as HTMLButtonElement;
     bt.classList.remove("oculto");
     let feito = false;
@@ -89,7 +97,7 @@ function esperarCola(nome: string, mime: string, linhas: string, unidade: string
         if (feito) { return; }
         const t = (texto || "").trim();
         const pref = t.indexOf("NFXLSX1.") === 0 ? "NFXLSX1." : Object.keys(PREFIXOS_COLA).find(k => t.indexOf(k) === 0);
-        if (!pref) { erro("O texto colado não veio do painel. Volte ao Power BI, clique em Exportar > Baixar Excel de novo e cole aqui sem copiar outra coisa antes."); bt.classList.remove("oculto"); return; }
+        if (!pref) { erro("O texto colado não veio do painel. Volte ao Power BI, clique em " + (pdf ? "Exportar PDF" : "Exportar > Baixar Excel") + " de novo e cole aqui sem copiar outra coisa antes."); bt.classList.remove("oculto"); return; }
         feito = true; bt.classList.add("oculto");
         try {
             if (pref === "NFXLSX1.") {
@@ -100,7 +108,7 @@ function esperarCola(nome: string, mime: string, linhas: string, unidade: string
                 entregar(await inflarXlsxComLimite(b64u(t.slice(pref.length))), nome, mime);
             } else {
                 const carga = JSON.parse(new TextDecoder().decode(await inflar(b64u(t.slice(pref.length))))) as unknown;
-                entregar(PREFIXOS_COLA[pref](carga), nome, mime);
+                entregar(await PREFIXOS_COLA[pref](carga), nome, pref === "NFRK1." ? PDF : mime);
             }
         } catch (e) {
             feito = false;
@@ -119,17 +127,19 @@ function esperarCola(nome: string, mime: string, linhas: string, unidade: string
 (async () => {
     const p = new URLSearchParams(location.hash.slice(1));
     const nome = p.get("n") || "painel.xlsx";
-    const mime = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    const mime = /\.pdf$/i.test(nome) ? PDF : XLSX;
     try {
         const j = p.get("j"), d = p.get("d");
         if (j) {
             const bruto = p.get("c") === "1" ? await inflar(b64u(j)) : b64u(j);
-            const carga = JSON.parse(new TextDecoder().decode(bruto)) as Carga | CargaDia | CargaMes | CargaPedido | CargaReps | CargaMetas | CargaPM | CargaVendas | CargaMR;
+            const carga = JSON.parse(new TextDecoder().decode(bruto)) as Carga | CargaDia | CargaMes | CargaPedido | CargaReps | CargaMetas | CargaPM | CargaVendas | CargaMR | CargaRK;
             const png = async (g: { svg: string; w: number; h: number }) => ({ png: await svgParaPng(g.svg, g.w, g.h), w: g.w, h: g.h });
             const imagens = [];
-            const semImagens = (carga as CargaPedidos).tipo === "pedidosMes" || (carga as CargaPedido).tipo === "pedidoDiario" || (carga as CargaReps).tipo === "repsSemPedidos" || (carga as CargaMetas).tipo === "painelMetas" || (carga as CargaVendas).tipo === "painelVendas" || (carga as CargaMR).tipo === "painelMetasRep";
+            const semImagens = (carga as CargaPedidos).tipo === "pedidosMes" || (carga as CargaPedido).tipo === "pedidoDiario" || (carga as CargaReps).tipo === "repsSemPedidos" || (carga as CargaMetas).tipo === "painelMetas" || (carga as CargaVendas).tipo === "painelVendas" || (carga as CargaMR).tipo === "painelMetasRep" || (carga as CargaRK).tipo === "ranking";
             for (const g of semImagens ? [] : carga.svgs || []) { imagens.push(await png(g)); }
-            if ((carga as CargaMR).tipo === "painelMetasRep") {
+            if ((carga as CargaRK).tipo === "ranking") {
+                entregar(await gerarPdfRanking(carga as CargaRK), nome, PDF);
+            } else if ((carga as CargaMR).tipo === "painelMetasRep") {
                 entregar(gerarXlsxMetasRep(expandirMR(carga as CargaMR)), nome, mime);
             } else if ((carga as CargaVendas).tipo === "painelVendas") {
                 entregar(gerarXlsxPainelVendas(expandirPV(carga as CargaVendas)), nome, mime);
@@ -155,11 +165,11 @@ function esperarCola(nome: string, mime: string, linhas: string, unidade: string
             esperarCola(nome, mime, p.get("q") || "", (p.get("u") || "").replace(/[^a-zà-ú ]/gi, ""));
         } else if (d) {
             const b = b64u(d);
-            const tipo = p.get("t") || mime;
-            const bytes = tipo === mime
+            const tipo = p.get("t") || XLSX;
+            const bytes = tipo === XLSX
                 ? (p.get("c") === "1" ? await inflarXlsxComLimite(b) : validarXlsxBytes(b))
                 : (p.get("c") === "1" ? await inflar(b) : b);
             entregar(bytes, nome, tipo);
-        } else { erro("Nenhum arquivo recebido (página v2.6). Abra esta página pelo botão Exportar do painel."); }
+        } else { erro("Nenhum arquivo recebido (página v2.7). Abra esta página pelo botão Exportar do painel."); }
     } catch (e) { erro("O arquivo chegou incompleto ou passou do limite do endereço. " + (e instanceof Error ? e.message : "")); }
 })();

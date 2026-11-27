@@ -1,0 +1,60 @@
+{
+  "dataRoles": [
+    { "displayName": "Representante", "name": "repCod", "kind": "Grouping" },
+    { "displayName": "Família", "name": "familia", "kind": "Grouping" },
+    { "displayName": "Linha (medida Ranking Linha)", "name": "linha", "kind": "Measure" }
+  ],
+  "objects": {
+    "titulo": {
+      "displayName": "Título",
+      "properties": {
+        "mostrar": { "displayName": "Mostrar título", "type": { "bool": true } },
+        "mostrarEyebrow": { "displayName": "Mostrar linha de filtros", "type": { "bool": true } },
+        "fontFamily": { "displayName": "Fonte", "type": { "formatting": { "fontFamily": true } } },
+        "fontSize": { "displayName": "Tamanho", "type": { "formatting": { "fontSize": true } } },
+        "bold": { "displayName": "Negrito", "type": { "bool": true } },
+        "italic": { "displayName": "Itálico", "type": { "bool": true } },
+        "cor": { "displayName": "Cor", "type": { "fill": { "solid": { "color": true } } } }
+      }
+    },
+    "cabecalho": {
+      "displayName": "Cabeçalho",
+      "properties": {
+        "mostrarFundo": { "displayName": "Mostrar fundo", "type": { "bool": true } },
+        "cor": { "displayName": "Cor do fundo", "type": { "fill": { "solid": { "color": true } } } },
+        "mostrarTotais": { "displayName": "Mostrar totais", "type": { "bool": true } }
+      }
+    },
+    "fundo": {
+      "displayName": "Fundo do visual",
+      "properties": {
+        "mostrar": { "displayName": "Mostrar fundo", "type": { "bool": true } },
+        "cor": { "displayName": "Cor", "type": { "fill": { "solid": { "color": true } } } }
+      }
+    },
+    "exportacao": {
+      "displayName": "Exportação",
+      "properties": {
+        "urlPagina": { "displayName": "Endereço da página de download", "type": { "text": true } }
+      }
+    }
+  },
+  "dataViewMappings": [
+    {
+      "table": {
+        "rows": {
+          "select": [
+            { "bind": { "to": "repCod" } },
+            { "bind": { "to": "familia" } },
+            { "bind": { "to": "linha" } }
+          ],
+          "dataReductionAlgorithm": { "window": { "count": 30000 } }
+        }
+      }
+    }
+  ],
+  "privileges": [
+    { "name": "ExportContent", "essential": false },
+    { "name": "WebAccess", "essential": false, "parameters": [ "https://*.github.io" ] }
+  ]
+}

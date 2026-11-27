@@ -1,0 +1,25 @@
+{
+  "visual": {
+    "name": "rankingRepresentantes",
+    "displayName": "Ranking de Representantes",
+    "guid": "rankingRepresentantesC4CF422185814E10B306576C81CCD2F2",
+    "visualClassName": "Visual",
+    "version": "1.0.5.0",
+    "description": "Ranking de representantes (Venda x Positivação) com filtros e exportação em PDF pela página de download",
+    "supportUrl": "https://novaforma.com.br",
+    "gitHubUrl": ""
+  },
+  "apiVersion": "5.11.1",
+  "author": {
+    "name": "NovaForma BI",
+    "email": "gabrielpms2001@gmail.com"
+  },
+  "assets": {
+    "icon": "assets/icon.png"
+  },
+  "externalJS": null,
+  "style": "style/visual.less",
+  "capabilities": "capabilities.json",
+  "dependencies": "dependencies.json",
+  "stringResources": []
+}
