@@ -52,18 +52,32 @@ export function particionar(n: number, linhas: number): number[] {
 
 // ---- imagem única (JPEG): lista contínua, sem páginas ----
 export const IMG_W = 880;                    // largura lógica (a mesma do PDF); em pixels = IMG_W x escala
-export const IMG_MAX_ALTURA = 16000;         // altura máxima segura de um canvas, em pixels
-export const IMG_MAX_AREA = 268000000;       // área máxima (pixels) dos navegadores de computador
+export const IMG_ESCALAS = [3, 2.5, 2, 1.5, 1];   // da mais nítida à mais leve; a página usa a maior que cabe e funciona de verdade
+export const IMG_MAX_ALTURA = 30000;         // altura máxima segura de um canvas, em pixels (Chrome/Edge/Firefox aceitam ~32000)
+export const IMG_MAX_AREA = 200000000;       // área máxima segura (pixels) em computador (limite real ~268 milhões)
+export const IMG_MAX_AREA_SAFARI = 67000000; // Safari do Mac: limite menor; a validação da página reduz mais se preciso
 export const IMG_MAX_AREA_IOS = 16700000;    // Safari do iPhone/iPad aceita bem menos
-export const MSG_IMAGEM_GRANDE = "A lista é grande demais para uma imagem única; use o PDF ou filtre por supervisão.";
+export const IMG_QUALIDADE = 0.97;           // qualidade do JPEG
 export const alturaImagem = (n: number, linhas: number) => Math.round(Math.max(946, TOPO1 + (Math.max(1, n) - 1) * PASSO + LINHA_H + rodapeH(linhas)));
-// Maior escala (2 -> 1,5 -> 1) em que a lista inteira cabe num canvas; 0 = não cabe nem na escala 1
-export function escalaImagem(n: number, linhas: number, ios = false): number {
-    const H = alturaImagem(n, linhas), area = ios ? IMG_MAX_AREA_IOS : IMG_MAX_AREA;
-    for (const s of [2, 1.5, 1]) { if (H * s <= IMG_MAX_ALTURA && IMG_W * s * H * s <= area) return s; }
-    return 0;
+// Escalas (da maior para a menor) em que a lista inteira cabe nos limites do navegador; vazio = não cabe nem na escala 1
+export function escalasImagem(n: number, linhas: number, area = IMG_MAX_AREA): number[] {
+    const H = alturaImagem(n, linhas);
+    return IMG_ESCALAS.filter(s => H * s <= IMG_MAX_ALTURA && IMG_W * s * H * s <= area);
 }
+// Maior escala que cabe; 0 = não cabe nem na escala 1
+export const escalaImagem = (n: number, linhas: number, area = IMG_MAX_AREA): number => escalasImagem(n, linhas, area)[0] || 0;
+// Quantos representantes cabem numa imagem única (escala 1, a mais leve) nos limites desse navegador; "linhas" = linhas do rodapé (4 = pior caso)
+export function maxRepsImagem(linhas = 4, area = IMG_MAX_AREA): number {
+    let n = Math.max(1, Math.floor((Math.min(IMG_MAX_ALTURA, area / IMG_W) - TOPO1 - LINHA_H - rodapeH(linhas)) / PASSO) + 1);
+    while (n > 0 && !escalaImagem(n, linhas, area)) n--;
+    while (escalaImagem(n + 1, linhas, area)) n++;
+    return n;
+}
+export const msgImagemGrande = (area = IMG_MAX_AREA) => "A lista é grande demais para uma imagem única (cabem até " + maxRepsImagem(4, area).toLocaleString("pt-BR") + " representantes neste navegador); use o PDF ou filtre por supervisão.";
 export const ehIos = () => typeof navigator !== "undefined" && (/iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && (navigator as any).maxTouchPoints > 1));
+const ehSafari = () => typeof navigator !== "undefined" && /Safari\//.test(navigator.userAgent) && !/Chrome|Chromium|CriOS|FxiOS|Edg|OPR|Android/.test(navigator.userAgent);
+// Área máxima de canvas conforme o navegador (iPhone/iPad < Safari do Mac < Chrome/Edge/Firefox)
+export const areaMaximaImagem = () => ehIos() ? IMG_MAX_AREA_IOS : ehSafari() ? IMG_MAX_AREA_SAFARI : IMG_MAX_AREA;
 
 export function compactar(pg: PaginaPdf, saida?: "jpg"): CargaRanking {
     return {

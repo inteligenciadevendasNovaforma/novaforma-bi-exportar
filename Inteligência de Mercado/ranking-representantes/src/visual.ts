@@ -2,7 +2,7 @@
 
 import "./../style/visual.less";
 import powerbi from "powerbi-visuals-api";
-import { CargaRanking, PaginaPdf, compactar, particionar, LIMITE_PAGINAS, PREFIXO_COLA, escalaImagem, ehIos, MSG_IMAGEM_GRANDE } from "./cargaRanking";
+import { CargaRanking, PaginaPdf, compactar, particionar, LIMITE_PAGINAS, PREFIXO_COLA, escalaImagem, areaMaximaImagem, msgImagemGrande } from "./cargaRanking";
 import { FormattingSettingsService } from "powerbi-visuals-utils-formattingmodel";
 import { VisualSettings } from "./settings";
 
@@ -378,7 +378,7 @@ export class Visual implements IVisual {
         const doc = this.pdfDoc();
         if (!doc) { this.setMsg("Nada para exportar com os filtros atuais.", true); return; }
         const npag = jpg ? 1 : particionar(doc.reps.length, 3).length; // estimativa (o rodapé pode ocupar 2 a 4 linhas)
-        if (jpg && !escalaImagem(doc.reps.length, 4, ehIos())) { this.setMsg(MSG_IMAGEM_GRANDE, true); return; }
+        if (jpg && !escalaImagem(doc.reps.length, 4, areaMaximaImagem())) { this.setMsg(msgImagemGrande(areaMaximaImagem()), true); return; }
         if (npag > LIMITE_PAGINAS) { this.setMsg("Essa seleção geraria " + npag + " páginas. Filtre Supervisão ou UF antes de exportar.", true); return; }
         const url = String((this.fmt.exportacao && this.fmt.exportacao.urlPagina.value) || "").trim();
         if (!/^https:\/\//i.test(url)) { this.setMsg("Informe o endereço da página de download em Formatar > Exportação.", true); return; }

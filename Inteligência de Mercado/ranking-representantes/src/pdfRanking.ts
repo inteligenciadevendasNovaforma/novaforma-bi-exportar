@@ -3,7 +3,7 @@
 // Mesmo desenho do PDF que o visual gerava até a v1.0.4: canvas 880 px de largura (escala 2) -> JPEG -> PDF montado à mão,
 // v1.0.7: lista contínua como na tela (várias páginas só se não couber; cabeçalho da tabela repetido), cabeçalho azul-marinho, medalhas, barras e rodapé. Fontes Barlow embutidas (fonts.ts).
 import { FONTS } from "./fonts";
-import { CargaRanking, PaginaPdf, expandir, particionar, LIMITE_PAGINAS, PAG_H, TOPO1, TOPON, PASSO, LINHA_H, rodapeH, alturaImagem, escalaImagem, ehIos, MSG_IMAGEM_GRANDE } from "./cargaRanking";
+import { CargaRanking, PaginaPdf, expandir, particionar, LIMITE_PAGINAS, PAG_H, TOPO1, TOPON, PASSO, LINHA_H, rodapeH, alturaImagem, escalasImagem, areaMaximaImagem, IMG_QUALIDADE, msgImagemGrande } from "./cargaRanking";
 import { LOGO_PATHS, LOGO_W, LOGO_H, LOGO_DX, LOGO_DY } from "./logo";
 
 const FONT_H = '"Barlow Condensed","Bahnschrift SemiBold Condensed","Arial Narrow","Segoe UI",sans-serif';
@@ -27,6 +27,9 @@ function loadFonts(): Promise<void> {
                 const face = new FontFace(f.family, buf.buffer, { weight: f.weight });
                 await face.load(); fonts.add(face);
             }));
+            // garante que cada família/peso está pronto para o canvas (senão o primeiro desenho cairia na fonte de reserva)
+            await Promise.all(FONTS.map(f => fonts.load(f.weight + " 16px \"" + f.family + "\"", "Ráç0123456789")));
+            if (fonts.ready) await fonts.ready;
         } catch (e) { /* usa as fontes de reserva */ }
     })();
     return fontsReady;
@@ -47,12 +50,12 @@ function fitText(c: CanvasRenderingContext2D, text: string, maxW: number) {
 
 // Desenha UMA página do ranking. rows = linhas desta página; ini = índice global da primeira (zebra contínua);
 // n/total = número desta página e total; H = altura (fixa em A4 quando há várias páginas); ultima = leva o rodapé.
-function desenharPagina(pg: PaginaPdf, rows: PaginaPdf["reps"], mxV: number, mxC: number, idx: number, total: number, H: number, lines: string[], S = 2, logo = false): HTMLCanvasElement {
+function desenharPagina(pg: PaginaPdf, rows: PaginaPdf["reps"], mxV: number, mxC: number, idx: number, total: number, H: number, lines: string[], S = 2, logo = false, alinhar = false): HTMLCanvasElement {
     const W = 880, isPos = pg.isPos, showV = pg.showV !== false, rowH = LINHA_H, pitch = PASSO;
     const primeira = idx === 0, ultima = idx === total - 1, top0 = primeira ? TOPO1 : TOPON;
     const sp = (c: any, v: string) => { try { c.letterSpacing = v; } catch (e) { /* sem suporte */ } };
     const cv = document.createElement("canvas"); cv.width = Math.floor(W * S); cv.height = Math.floor(H * S);
-    const c = cv.getContext("2d"); if (!c) throw erroImagemGrande(); c.scale(S, S); c.textBaseline = "alphabetic";
+    const c = cv.getContext("2d"); if (!c) throw erroImagemGrande(); c.scale(S, S); c.textBaseline = "alphabetic"; c.imageSmoothingEnabled = true; c.imageSmoothingQuality = "high";
     c.fillStyle = "#F4F6F9"; c.fillRect(0, 0, W, H);
     c.textAlign = "left";
     let hy: number;
@@ -89,7 +92,7 @@ function desenharPagina(pg: PaginaPdf, rows: PaginaPdf["reps"], mxV: number, mxC
     c.font = (cliOn ? "700" : "600") + " 11px " + FONT_B; c.fillStyle = cliOn ? "#0B2A4A" : "#5A6B7E"; c.fillText("CLIENTES", 827, hy);
     sp(c, "0px");
     rows.forEach((x, i) => {
-        const y = top0 + i * pitch, top = x.pos <= 3;
+        const y0 = top0 + i * pitch, y = alinhar ? Math.round(y0 * S) / S : y0, top = x.pos <= 3; // alinhar: topo da linha no pixel real (bordas e barras nítidas)
         c.save();
         if (top) { c.shadowColor = "rgba(11,42,74,.14)"; c.shadowBlur = 4; c.shadowOffsetY = 1; c.fillStyle = "#fff"; } else c.fillStyle = x.zebra % 2 ? "#EEF1F5" : "#F8FAFC";
         roundRect(c, 40, y, 801, rowH, 9); c.fill(); c.restore();
@@ -107,7 +110,7 @@ function desenharPagina(pg: PaginaPdf, rows: PaginaPdf["reps"], mxV: number, mxC
     if (total > 1) { c.textAlign = "center"; c.fillStyle = "#6B7A90"; c.font = "500 12px " + FONT_B; c.fillText("Página " + (idx + 1) + " de " + total, W / 2, H - 16); }
     return cv;
 }
-function erroImagemGrande(): Error { const e = new Error(MSG_IMAGEM_GRANDE); e.name = "ImagemGrande"; return e; }
+function erroImagemGrande(): Error { const e = new Error(msgImagemGrande(areaMaximaImagem())); e.name = "ImagemGrande"; return e; }
 
 // Uma página do PDF: desenha (escala 2) e converte em JPEG para o PDF
 function pageImage(pg: PaginaPdf, rows: PaginaPdf["reps"], mxV: number, mxC: number, idx: number, total: number, H: number, lines: string[]): Imagem {
@@ -170,20 +173,37 @@ export async function gerarPdfRanking(carga: CargaRanking, progresso?: (i: numbe
 }
 
 // Ranking em UMA imagem (JPEG): a lista inteira, contínua, sem páginas (mesmo desenho do PDF, com a logo no cabeçalho).
-// Escala 2 -> 1,5 -> 1 conforme o limite de canvas do navegador; se nem na escala 1 couber, avisa (erro "ImagemGrande").
-export async function gerarJpegRanking(carga: CargaRanking, progresso?: (i: number, n: number) => void): Promise<Uint8Array> {
+// v1.0.9: escala-alvo 3 (depois 2,5 -> 2 -> 1,5 -> 1) conforme os limites do navegador; cada escala é VALIDADA (o canvas gigante precisa ter
+// sido desenhado de verdade e o JPEG não pode sair vazio), senão tenta a próxima. Se nem na escala 1 couber, avisa (erro "ImagemGrande").
+const perto = (a: Uint8ClampedArray, r: number, g: number, b: number) => Math.abs(a[0] - r) < 10 && Math.abs(a[1] - g) < 10 && Math.abs(a[2] - b) < 10 && a[3] === 255;
+function desenhou(cv: HTMLCanvasElement): boolean {
+    try {
+        const c = cv.getContext("2d"); if (!c) return false;
+        return perto(c.getImageData(3, 3, 1, 1).data, 0x0B, 0x2A, 0x4A) && perto(c.getImageData(3, cv.height - 4, 1, 1).data, 0xF4, 0xF6, 0xF9);   // cabeçalho azul-marinho e fundo no pé
+    } catch (e) { return false; }
+}
+export interface OpcoesImagem { qualidade?: number; escalas?: number[]; escalaUsada?: (s: number) => void; }
+export async function gerarJpegRanking(carga: CargaRanking, progresso?: (i: number, n: number) => void, op: OpcoesImagem = {}): Promise<Uint8Array> {
     const docs = expandir(carga);
     if (!docs.length) { throw new Error("Nada para exportar com os filtros escolhidos no painel."); }
     await loadFonts();
     const pg = docs[0], pl = docPages(pg);
-    const S = escalaImagem(pg.reps.length, pl.lines.length, ehIos());
-    if (!S) { throw erroImagemGrande(); }
+    const escalas = op.escalas || escalasImagem(pg.reps.length, pl.lines.length, areaMaximaImagem());
+    if (!escalas.length) { throw erroImagemGrande(); }
     if (progresso) progresso(1, 1);
-    await new Promise(r => setTimeout(r, 0));
     const H = alturaImagem(pg.reps.length, pl.lines.length);
-    let cv: HTMLCanvasElement;
-    try { cv = desenharPagina(pg, pl.rows, pl.mxV, pl.mxC, 0, 1, H, pl.lines, S, true); } catch (e) { throw erroImagemGrande(); }
-    const blob: Blob | null = await new Promise(r => { try { cv.toBlob(b => r(b), "image/jpeg", 0.92); } catch (e) { r(null); } });
-    if (!blob || blob.size < 1000) { throw erroImagemGrande(); }
-    return new Uint8Array(await blob.arrayBuffer());
+    for (const S of escalas) {
+        await new Promise(r => setTimeout(r, 0));
+        let cv: HTMLCanvasElement | null = null;
+        try {
+            cv = desenharPagina(pg, pl.rows, pl.mxV, pl.mxC, 0, 1, H, pl.lines, S, true, true);
+            if (!desenhou(cv)) { continue; }
+            const blob: Blob | null = await new Promise(r => { try { cv.toBlob(b => r(b), "image/jpeg", op.qualidade || IMG_QUALIDADE); } catch (e) { r(null); } });
+            if (!blob || blob.size < 1000) { continue; }
+            if (op.escalaUsada) op.escalaUsada(S);
+            return new Uint8Array(await blob.arrayBuffer());
+        } catch (e) { /* tenta a próxima escala */ }
+        finally { if (cv) { cv.width = 0; cv.height = 0; } }
+    }
+    throw erroImagemGrande();
 }

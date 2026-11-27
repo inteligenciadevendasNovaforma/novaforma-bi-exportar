@@ -4,7 +4,7 @@
     "displayName": "Ranking de Representantes",
     "guid": "rankingRepresentantesC4CF422185814E10B306576C81CCD2F2",
     "visualClassName": "Visual",
-    "version": "1.0.8.0",
+    "version": "1.0.9.0",
     "description": "Ranking de representantes (Venda x Positivação) com filtros e exportação em PDF e em imagem única (JPEG), como na tela, pela página de download",
     "supportUrl": "https://novaforma.com.br",
     "gitHubUrl": ""
