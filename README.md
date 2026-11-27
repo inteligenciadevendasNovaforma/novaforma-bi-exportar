@@ -19,6 +19,8 @@ O botão **Copiar tabela** copia a tabela em texto com tabulações, no layout d
 
 **Ranking de Representantes (PDF):** o botão **Exportar PDF** manda os dados do ranking pelo link (ou pela área de transferência, prefixo `NFRK1.`, com `#k=cola`) e a página desenha o PDF (uma página por Supervisão × UF, até 60) no navegador e baixa.
 
+**Oportunidade de Mix (Excel, pasta `Inteligência de Mercado/oportunidade-mix/`, medida `Oportunidade_Mix_medida.dax`):** **Exportar > Baixar Excel** manda a lista da tela pelo link ou, se não couber, pela área de transferência (prefixo `NFOM1.`, `#k=cola`); a página monta 3 abas (Resumo, Sem venda por família, Representantes).
+
 A página é única e atende todos os visuais. O tipo de arquivo vem no campo `tipo` da carga. Cargas antigas continuam aceitas.
 
 ## Publicar a página

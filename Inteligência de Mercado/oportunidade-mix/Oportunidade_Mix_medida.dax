@@ -1,0 +1,134 @@
+// Medida de carga do visual "Oportunidade de Mix" v1.0.0.0 (tabela @Medida). Nome: Oportunidade Mix (visual)
+// Campos do visual: Representante = d_Representantes[Código do Vendedor]; Oportunidade Mix (medida) = esta medida.
+// DEPENDÊNCIAS (todas já existem no modelo Desempenho Venda; nenhuma tabela, coluna ou relacionamento novo):
+//   d_Representantes[Código do Vendedor], [Nome do Rep], [Supervisão], [UF], [Bloq central compras]
+//   f_Faturamento[Cod. Representante Vendas], [Doc Vendas], [Família], [Data entrada], [Faturamento], [Tp.doc.faturamento]
+//   f_Carteira[Cod. Representante vendas], [Doc Vendas], [Família], [Data entrada], [Valor em carteira], [Tipo doc.venda], [Motivo de recusa]
+//   d_Calendario[Date] (só para ler o período escolhido no visual: filtro de intervalo aplicado pelo próprio visual)
+// Regra = a do dashboard original "Oportunidade de Mix por Representante":
+//   Base: representantes não bloqueados (Bloq central compras = "#"; no modelo 'Ativo SAP' é verdadeiro para todos), código <> "#",
+//         sem "VENDA DIRETA" no nome, nome <> "(não atribuído)" e com mais de 3 letras (hoje 216).
+//   Pedido válido no período [início, fim] pela DATA DE ENTRADA do pedido:
+//     faturamento: tipos F2B, YORB, YSUF, YVCO, YV1T, YV2T, YV3T, REB, YREB, YROB, YRES, YROS, YDC1, YDC2, YR1T, YR3T; soma > 0 por (representante, documento);
+//     carteira: tipos ORB, YV1T, YORB, YVCO, YSUF; motivo de recusa vazio, "Não atribuído" ou "#"; soma > 0 por (representante, documento);
+//     pedidos = documentos distintos da união (o mesmo pedido no faturamento e na carteira conta 1 vez); vendido = soma dos documentos válidos.
+//   Família = coluna Família da própria fato (FORRO E ACESS. BR, FORRO E ACESS. COLOR, PORTA PVC, ACESS. PARA PISO, CANTINHO).
+//   Última venda da família = maior data de entrada de documento válido em TODO o histórico até o fim do período (sem limite de 24 meses).
+//   Vendido 30 dias = vendido nas 5 famílias de (fim - 29) até o fim.
+// Período: sem filtro em d_Calendario = "Neste mês" (dia 1 do mês até hoje, horário de Brasília); com filtro = MIN/MAX das datas filtradas
+//   (o fim nunca passa de hoje). O visual aplica o filtro (selfFilter) em d_Calendario[Date]; o calendário começa em 02/01/2024.
+// Desempenho (v1.0): tudo calculado UMA vez, numa única célula (a do 1º representante do visual = menor código), com uma leitura por fato
+//   agrupada por representante x documento x família x data e montagem do texto por junções (sem FILTER por representante x família).
+//   Medido no modelo (cache limpo, mês atual, 216 representantes): ~1,2 s com o histórico inteiro; ~0,9 s lendo o faturamento só
+//   desde o início do período (o histórico custa ~0,3 s, por isso NÃO foi limitado a 24 meses).
+// Texto: linhas separadas por quebra de linha (UNICHAR 10), campos por "|":
+//   codigo|nome|supervisao|uf|pedidos|vendido|vendido30|(pedidos|vendido|ultimaVenda yyyymmdd) x 5 famílias na ordem FB, FC, PT, AP, CT
+//   depois de "~": MIX1|inicio|fim|hoje|temPeriodo(0/1)|base|maiorDataFaturamento|maiorDataCarteira|inicioCalendario|supervisoes|ufs
+//   (datas yyyy-mm-dd; listas do botão Filtros separadas por "^", só nesta célula). As demais linhas do visual ficam vazias.
+// Validado no modelo (DEFINE MEASURE + EVALUATE) em 27/11/2026: setembro/2026 igual ao pbix para 600008, 600259, 600747, 600016 e 600028;
+//   mês atual (01 a 27/11/2026): 216 representantes; sem venda FB 60, FC 136, PT 62, AP 125, CT 109; 1.716 pedidos.
+Oportunidade Mix (visual) =
+VAR _cod = SELECTEDVALUE ( d_Representantes[Código do Vendedor] )
+VAR _primeiro =
+    CALCULATE (
+        MIN ( d_Representantes[Código do Vendedor] ),
+        ALLSELECTED ( d_Representantes ),
+        KEEPFILTERS ( d_Representantes[Bloq central compras] = "#" ),
+        KEEPFILTERS ( d_Representantes[Código do Vendedor] <> "#" ),
+        KEEPFILTERS ( NOT CONTAINSSTRING ( d_Representantes[Nome do Rep], "VENDA DIRETA" ) ),
+        KEEPFILTERS ( d_Representantes[Nome do Rep] <> "(não atribuído)" ),
+        KEEPFILTERS ( LEN ( d_Representantes[Nome do Rep] ) > 3 )
+    )
+RETURN
+IF (
+    NOT ISBLANK ( _cod ) && _cod = _primeiro,
+    VAR _nl = UNICHAR ( 10 )
+    VAR _hoje = INT ( UTCNOW () - 3 / 24 )
+    VAR _temPer = ISFILTERED ( d_Calendario )
+    VAR _i = IF ( _temPer, MIN ( d_Calendario[Date] ), DATE ( YEAR ( _hoje ), MONTH ( _hoje ), 1 ) )
+    VAR _f = MIN ( IF ( _temPer, MAX ( d_Calendario[Date] ), _hoje ), _hoje )
+    VAR _i30 = _f - 29
+    VAR _iJan = MIN ( _i, _i30 )
+    VAR _fams = { "FORRO E ACESS. BR", "FORRO E ACESS. COLOR", "PORTA PVC", "ACESS. PARA PISO", "CANTINHO" }
+    VAR _tFat = { "F2B", "YORB", "YSUF", "YVCO", "YV1T", "YV2T", "YV3T", "REB", "YREB", "YROB", "YRES", "YROS", "YDC1", "YDC2", "YR1T", "YR3T" }
+    VAR _tCart = { "ORB", "YV1T", "YORB", "YVCO", "YSUF" }
+    // representantes elegíveis entre os selecionados (filtros da página em d_Representantes)
+    VAR _reps =
+        CALCULATETABLE (
+            SUMMARIZE ( d_Representantes, d_Representantes[Código do Vendedor], d_Representantes[Nome do Rep], d_Representantes[Supervisão], d_Representantes[UF] ),
+            ALLSELECTED ( d_Representantes ),
+            KEEPFILTERS ( d_Representantes[Bloq central compras] = "#" ),
+            KEEPFILTERS ( d_Representantes[Código do Vendedor] <> "#" ),
+            KEEPFILTERS ( NOT CONTAINSSTRING ( d_Representantes[Nome do Rep], "VENDA DIRETA" ) ),
+            KEEPFILTERS ( d_Representantes[Nome do Rep] <> "(não atribuído)" ),
+            KEEPFILTERS ( LEN ( d_Representantes[Nome do Rep] ) > 3 )
+        )
+    VAR _cods = SELECTCOLUMNS ( _reps, "@c", d_Representantes[Código do Vendedor] )
+    // documentos por representante x família x data de entrada (todo o histórico até o fim do período), uma leitura por fato
+    VAR _fatD =
+        CALCULATETABLE (
+            SUMMARIZE ( f_Faturamento, f_Faturamento[Cod. Representante Vendas], f_Faturamento[Doc Vendas], f_Faturamento[Família], f_Faturamento[Data entrada], "@v", SUM ( f_Faturamento[Faturamento] ) ),
+            REMOVEFILTERS ( d_Calendario ), REMOVEFILTERS ( d_Representantes ),
+            f_Faturamento[Data entrada] <= _f,
+            f_Faturamento[Tp.doc.faturamento] IN _tFat,
+            f_Faturamento[Família] IN _fams,
+            TREATAS ( _cods, f_Faturamento[Cod. Representante Vendas] ),
+            NOT ( f_Faturamento[Doc Vendas] IN { "", "#" } ), NOT ISBLANK ( f_Faturamento[Doc Vendas] )
+        )
+    VAR _cartD =
+        CALCULATETABLE (
+            SUMMARIZE ( f_Carteira, f_Carteira[Cod. Representante vendas], f_Carteira[Doc Vendas], f_Carteira[Família], f_Carteira[Data entrada], "@v", SUM ( f_Carteira[Valor em carteira] ) ),
+            REMOVEFILTERS ( d_Calendario ), REMOVEFILTERS ( d_Representantes ),
+            f_Carteira[Data entrada] <= _f,
+            f_Carteira[Tipo doc.venda] IN _tCart,
+            f_Carteira[Família] IN _fams,
+            f_Carteira[Motivo de recusa] IN { BLANK (), "", "Não atribuído", "#" },
+            TREATAS ( _cods, f_Carteira[Cod. Representante vendas] ),
+            NOT ( f_Carteira[Doc Vendas] IN { "", "#" } ), NOT ISBLANK ( f_Carteira[Doc Vendas] )
+        )
+    VAR _fatU = SELECTCOLUMNS ( _fatD, "@r", f_Faturamento[Cod. Representante Vendas] & "", "@d", TRIM ( f_Faturamento[Doc Vendas] & "" ), "@f", f_Faturamento[Família] & "", "@dt", f_Faturamento[Data entrada], "@v", [@v] )
+    VAR _cartU = SELECTCOLUMNS ( _cartD, "@r", f_Carteira[Cod. Representante vendas] & "", "@d", TRIM ( f_Carteira[Doc Vendas] & "" ), "@f", f_Carteira[Família] & "", "@dt", f_Carteira[Data entrada], "@v", [@v] )
+    // família: documento válido = soma > 0 em cada fonte
+    VAR _famV = UNION ( FILTER ( _fatU, [@v] > 0 ), FILTER ( _cartU, [@v] > 0 ) )
+    VAR _ult = GROUPBY ( _famV, [@r], [@f], "@u", MAXX ( CURRENTGROUP (), [@dt] ) )
+    VAR _famP = GROUPBY ( FILTER ( _famV, [@dt] >= _i ), [@r], [@f], [@d], "@v", SUMX ( CURRENTGROUP (), [@v] ) )
+    VAR _famA = GROUPBY ( _famP, [@r], [@f], "@n", SUMX ( CURRENTGROUP (), 1 ), "@v", SUMX ( CURRENTGROUP (), [@v] ) )
+    // total das 5 famílias: documento válido = soma das 5 famílias > 0 em cada fonte
+    VAR _totFat = FILTER ( GROUPBY ( FILTER ( _fatU, [@dt] >= _iJan ), [@r], [@d], [@dt], "@v", SUMX ( CURRENTGROUP (), [@v] ) ), [@v] > 0 )
+    VAR _totCart = FILTER ( GROUPBY ( FILTER ( _cartU, [@dt] >= _iJan ), [@r], [@d], [@dt], "@v", SUMX ( CURRENTGROUP (), [@v] ) ), [@v] > 0 )
+    VAR _tot = UNION ( _totFat, _totCart )
+    VAR _totP = GROUPBY ( GROUPBY ( FILTER ( _tot, [@dt] >= _i ), [@r], [@d], "@v", SUMX ( CURRENTGROUP (), [@v] ) ), [@r], "@n", SUMX ( CURRENTGROUP (), 1 ), "@v", SUMX ( CURRENTGROUP (), [@v] ) )
+    VAR _tot30 = GROUPBY ( FILTER ( _tot, [@dt] >= _i30 ), [@r], "@v", SUMX ( CURRENTGROUP (), [@v] ) )
+    // montagem do texto com junções (sem FILTER por representante x família)
+    VAR _rp = SELECTCOLUMNS ( _reps, "@r", d_Representantes[Código do Vendedor] & "", "@nm", d_Representantes[Nome do Rep] & "", "@s", d_Representantes[Supervisão] & "", "@uf", d_Representantes[UF] & "" )
+    VAR _famT = DATATABLE ( "@f", STRING, "@o", INTEGER, { { "FORRO E ACESS. BR", 1 }, { "FORRO E ACESS. COLOR", 2 }, { "PORTA PVC", 3 }, { "ACESS. PARA PISO", 4 }, { "CANTINHO", 5 } } )
+    VAR _g = NATURALLEFTOUTERJOIN ( NATURALLEFTOUTERJOIN ( CROSSJOIN ( SELECTCOLUMNS ( _rp, "@r", [@r], "@nm", [@nm] ), _famT ), _famA ), _ult )
+    VAR _h = NATURALLEFTOUTERJOIN ( NATURALLEFTOUTERJOIN ( _rp, SELECTCOLUMNS ( _totP, "@r", [@r], "@tn", [@n], "@tv", [@v] ) ), SELECTCOLUMNS ( _tot30, "@r", [@r], "@t30", [@v] ) )
+    VAR _txt =
+        UNION (
+            SELECTCOLUMNS ( _h, "@nm", [@nm], "@r", [@r], "@o", 0,
+                "@t", _nl & [@r] & "|" & SUBSTITUTE ( SUBSTITUTE ( SUBSTITUTE ( [@nm], "|", " " ), "~", " " ), _nl, " " ) & "|" & SUBSTITUTE ( [@s], "|", " " ) & "|" & [@uf] & "|"
+                    & FORMAT ( COALESCE ( [@tn], 0 ), "0" ) & "|" & FORMAT ( COALESCE ( [@tv], 0 ), "0.00", "en-US" ) & "|" & FORMAT ( COALESCE ( [@t30], 0 ), "0.00", "en-US" ) ),
+            SELECTCOLUMNS ( _g, "@nm", [@nm], "@r", [@r], "@o", [@o],
+                "@t", "|" & FORMAT ( COALESCE ( [@n], 0 ), "0" ) & "|" & FORMAT ( COALESCE ( [@v], 0 ), "0.00", "en-US" ) & "|" & IF ( ISBLANK ( [@u] ), "", FORMAT ( [@u], "yyyymmdd" ) ) )
+        )
+    VAR _linhas = MID ( CONCATENATEX ( _txt, [@t], "", [@nm], ASC, [@r], ASC, [@o], ASC ), 2, 10000000 )
+    VAR _base =
+        CALCULATE (
+            COUNTROWS ( d_Representantes ),
+            REMOVEFILTERS ( d_Representantes ),
+            d_Representantes[Bloq central compras] = "#",
+            d_Representantes[Código do Vendedor] <> "#",
+            NOT CONTAINSSTRING ( d_Representantes[Nome do Rep], "VENDA DIRETA" ),
+            d_Representantes[Nome do Rep] <> "(não atribuído)",
+            LEN ( d_Representantes[Nome do Rep] ) > 3
+        )
+    VAR _fatMax = CALCULATE ( MAX ( f_Faturamento[Data entrada] ), REMOVEFILTERS () )
+    VAR _cartMax = CALCULATE ( MAX ( f_Carteira[Data entrada] ), REMOVEFILTERS () )
+    VAR _calMin = CALCULATE ( MIN ( d_Calendario[Date] ), REMOVEFILTERS () )
+    VAR _sups = CONCATENATEX ( DISTINCT ( SELECTCOLUMNS ( FILTER ( _reps, d_Representantes[Supervisão] <> "" ), "@s", SUBSTITUTE ( SUBSTITUTE ( d_Representantes[Supervisão], "^", " " ), "|", " " ) ) ), [@s], "^", [@s], ASC )
+    VAR _ufs = CONCATENATEX ( DISTINCT ( SELECTCOLUMNS ( FILTER ( _reps, d_Representantes[UF] <> "" ), "@u", d_Representantes[UF] & "" ) ), [@u], "^", [@u], ASC )
+    RETURN
+        _linhas & "~MIX1|" & FORMAT ( _i, "yyyy-mm-dd" ) & "|" & FORMAT ( _f, "yyyy-mm-dd" ) & "|" & FORMAT ( _hoje, "yyyy-mm-dd" ) & "|" & IF ( _temPer, "1", "0" ) & "|"
+            & FORMAT ( _base, "0" ) & "|" & FORMAT ( _fatMax, "yyyy-mm-dd" ) & "|" & FORMAT ( _cartMax, "yyyy-mm-dd" ) & "|" & FORMAT ( _calMin, "yyyy-mm-dd" ) & "|" & _sups & "|" & _ufs
+)

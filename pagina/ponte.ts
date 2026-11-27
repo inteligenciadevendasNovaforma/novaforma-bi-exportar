@@ -10,6 +10,7 @@ import { gerarXlsxPainelVendas, expandir as expandirPV, CargaPV } from "../Intel
 import { gerarXlsxMetasRep, expandir as expandirMR, CargaRep } from "../Inteligência de Mercado/painel-metas-rep/src/xlsxMetasRep";
 import { gerarPdfRanking, gerarJpegRanking } from "../Inteligência de Mercado/ranking-representantes/src/pdfRanking";
 import { CargaRanking } from "../Inteligência de Mercado/ranking-representantes/src/cargaRanking";
+import { gerarXlsxMix, expandir as expandirOM, CargaMix } from "../Inteligência de Mercado/oportunidade-mix/src/xlsxMix";
 import { ANTON_B64 } from "./fonte";
 import { inflarXlsxComLimite, validarXlsxBytes, MAX_COMPRESSED_XLSX_BYTES } from "./xlsxBytes";
 
@@ -29,6 +30,8 @@ interface CargaVendas extends CargaPV { svgs?: undefined; }
 interface CargaMR extends CargaRep { svgs?: undefined; }
 // Ranking de Representantes v1.0.5+: PDF (v1.0.8+: ou imagem única JPEG, saida = "jpg") desenhado aqui (v1.0.7+: lista contínua como na tela; v1.0.5/6: uma página por Supervisão × UF); pelo link ou colado (k=cola, prefixo NFRK1.)
 interface CargaRK extends CargaRanking { svgs?: undefined; }
+// Oportunidade de Mix v1.0: Excel com 3 abas (Resumo, Sem venda por família, Representantes); pelo link ou colado (k=cola, prefixo NFOM1.)
+interface CargaOM extends CargaMix { svgs?: undefined; }
 interface Carga extends Omit<EntradaXlsx, "imagens"> { svgs: { svg: string; w: number; h: number }[]; }
 
 const XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
@@ -78,7 +81,7 @@ function entregar(bytes: Uint8Array, nome: string, mime: string): void {
     a.click();
 }
 
-// Tabelas grandes (Pedidos Mês, Painel de Vendas, Painel Metas | Representante, Ranking em PDF): o visual copia os dados ("NFPM1.", "NFPV1.", "NFMR1." ou "NFRK1." + base64url do deflate-raw)
+// Tabelas grandes (Pedidos Mês, Painel de Vendas, Painel Metas | Representante, Ranking em PDF, Oportunidade de Mix): o visual copia os dados ("NFPM1.", "NFPV1.", "NFMR1.", "NFRK1." ou "NFOM1." + base64url do deflate-raw)
 // e abre a página com k=cola. A página pede para colar (Ctrl+V ou botão Colar dados) e monta o Excel com o texto colado.
 // Nada sai do navegador.
 // Ranking: PDF (várias páginas se precisar) ou, com saida = "jpg", uma imagem única contínua
@@ -89,7 +92,8 @@ const PREFIXOS_COLA: { [p: string]: (carga: unknown) => Uint8Array | Promise<Uin
     "NFPM1.": c => gerarXlsxPedidos(expandir(c as CargaPedidos)),
     "NFPV1.": c => gerarXlsxPainelVendas(expandirPV(c as CargaPV)),
     "NFMR1.": c => gerarXlsxMetasRep(expandirMR(c as CargaRep)),
-    "NFRK1.": c => gerarRanking(c as CargaRanking)
+    "NFRK1.": c => gerarRanking(c as CargaRanking),
+    "NFOM1.": c => gerarXlsxMix(expandirOM(c as CargaMix))
 };
 function esperarCola(nome: string, mime: string, linhas: string, unidade: string): void {
     $("#st").textContent = "⇩"; $("#tit").textContent = "Cole os dados do painel";
@@ -137,12 +141,14 @@ function esperarCola(nome: string, mime: string, linhas: string, unidade: string
         const j = p.get("j"), d = p.get("d");
         if (j) {
             const bruto = p.get("c") === "1" ? await inflar(b64u(j)) : b64u(j);
-            const carga = JSON.parse(new TextDecoder().decode(bruto)) as Carga | CargaDia | CargaMes | CargaPedido | CargaReps | CargaMetas | CargaPM | CargaVendas | CargaMR | CargaRK;
+            const carga = JSON.parse(new TextDecoder().decode(bruto)) as Carga | CargaDia | CargaMes | CargaPedido | CargaReps | CargaMetas | CargaPM | CargaVendas | CargaMR | CargaRK | CargaOM;
             const png = async (g: { svg: string; w: number; h: number }) => ({ png: await svgParaPng(g.svg, g.w, g.h), w: g.w, h: g.h });
             const imagens = [];
-            const semImagens = (carga as CargaPedidos).tipo === "pedidosMes" || (carga as CargaPedido).tipo === "pedidoDiario" || (carga as CargaReps).tipo === "repsSemPedidos" || (carga as CargaMetas).tipo === "painelMetas" || (carga as CargaVendas).tipo === "painelVendas" || (carga as CargaMR).tipo === "painelMetasRep" || (carga as CargaRK).tipo === "ranking";
+            const semImagens = (carga as CargaPedidos).tipo === "pedidosMes" || (carga as CargaPedido).tipo === "pedidoDiario" || (carga as CargaReps).tipo === "repsSemPedidos" || (carga as CargaMetas).tipo === "painelMetas" || (carga as CargaVendas).tipo === "painelVendas" || (carga as CargaMR).tipo === "painelMetasRep" || (carga as CargaRK).tipo === "ranking" || (carga as CargaOM).tipo === "oportunidadeMix";
             for (const g of semImagens ? [] : carga.svgs || []) { imagens.push(await png(g)); }
-            if ((carga as CargaRK).tipo === "ranking") {
+            if ((carga as CargaOM).tipo === "oportunidadeMix") {
+                entregar(gerarXlsxMix(expandirOM(carga as CargaOM)), nome, mime);
+            } else if ((carga as CargaRK).tipo === "ranking") {
                 entregar(await gerarRanking(carga as CargaRK), nome, (carga as CargaRK).saida === "jpg" ? JPG : PDF);
             } else if ((carga as CargaMR).tipo === "painelMetasRep") {
                 entregar(gerarXlsxMetasRep(expandirMR(carga as CargaMR)), nome, mime);
@@ -175,6 +181,6 @@ function esperarCola(nome: string, mime: string, linhas: string, unidade: string
                 ? (p.get("c") === "1" ? await inflarXlsxComLimite(b) : validarXlsxBytes(b))
                 : (p.get("c") === "1" ? await inflar(b) : b);
             entregar(bytes, nome, tipo);
-        } else { erro("Nenhum arquivo recebido (página v2.7). Abra esta página pelo botão Exportar do painel."); }
+        } else { erro("Nenhum arquivo recebido (página v2.8). Abra esta página pelo botão Exportar do painel."); }
     } catch (e) { erro(textoErro(e, "O arquivo chegou incompleto ou passou do limite do endereço. ")); }
 })();

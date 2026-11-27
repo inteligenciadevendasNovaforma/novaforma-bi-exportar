@@ -1,0 +1,208 @@
+{
+    "privileges": [
+        {
+            "name": "WebAccess",
+            "essential": false,
+            "parameters": [
+                "https://*.github.io"
+            ]
+        }
+    ],
+    "dataRoles": [
+        {
+            "displayName": "Representante",
+            "name": "rep",
+            "kind": "Grouping",
+            "description": "d_Representantes[Código do Vendedor]"
+        },
+        {
+            "displayName": "Oportunidade Mix (medida)",
+            "name": "dados",
+            "kind": "Measure",
+            "description": "Medida Oportunidade Mix (visual)"
+        }
+    ],
+    "dataViewMappings": [
+        {
+            "conditions": [
+                {
+                    "rep": {
+                        "max": 1
+                    },
+                    "dados": {
+                        "max": 1
+                    }
+                }
+            ],
+            "table": {
+                "rows": {
+                    "select": [
+                        {
+                            "bind": {
+                                "to": "rep"
+                            }
+                        },
+                        {
+                            "bind": {
+                                "to": "dados"
+                            }
+                        }
+                    ],
+                    "dataReductionAlgorithm": {
+                        "window": {
+                            "count": 30000
+                        }
+                    }
+                }
+            }
+        }
+    ],
+    "objects": {
+        "general": {
+            "displayName": "Geral",
+            "properties": {
+                "filter": {
+                    "type": {
+                        "filter": true
+                    }
+                },
+                "selfFilter": {
+                    "type": {
+                        "filter": {
+                            "selfFilter": true
+                        }
+                    }
+                }
+            }
+        },
+        "titulo": {
+            "displayName": "Título",
+            "properties": {
+                "mostrar": {
+                    "displayName": "Mostrar título",
+                    "type": {
+                        "bool": true
+                    }
+                },
+                "texto": {
+                    "displayName": "Texto",
+                    "type": {
+                        "text": true
+                    }
+                },
+                "subtitulo": {
+                    "displayName": "Subtítulo",
+                    "type": {
+                        "text": true
+                    }
+                }
+            }
+        },
+        "cabecalho": {
+            "displayName": "Cabeçalho",
+            "properties": {
+                "mostrar": {
+                    "displayName": "Mostrar faixa azul com logo",
+                    "type": {
+                        "bool": true
+                    }
+                },
+                "cor": {
+                    "displayName": "Cor da faixa",
+                    "type": {
+                        "fill": {
+                            "solid": {
+                                "color": true
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "fundo": {
+            "displayName": "Fundo do visual",
+            "properties": {
+                "mostrar": {
+                    "displayName": "Mostrar fundo",
+                    "type": {
+                        "bool": true
+                    }
+                },
+                "cor": {
+                    "displayName": "Cor",
+                    "type": {
+                        "fill": {
+                            "solid": {
+                                "color": true
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "periodoCfg": {
+            "displayName": "Período",
+            "properties": {
+                "coluna": {
+                    "displayName": "Coluna de data (Tabela[Coluna])",
+                    "type": {
+                        "text": true
+                    }
+                },
+                "soVisual": {
+                    "displayName": "Período filtra só este visual",
+                    "type": {
+                        "bool": true
+                    }
+                }
+            }
+        },
+        "exportacao": {
+            "displayName": "Exportação",
+            "properties": {
+                "mostrarBotao": {
+                    "displayName": "Mostrar botão Exportar",
+                    "type": {
+                        "bool": true
+                    }
+                },
+                "nomeArquivo": {
+                    "displayName": "Nome do arquivo Excel",
+                    "type": {
+                        "text": true
+                    }
+                },
+                "urlPagina": {
+                    "displayName": "Endereço da página de download",
+                    "type": {
+                        "text": true
+                    }
+                }
+            }
+        },
+        "periodo": {
+            "displayName": "Período escolhido (interno)",
+            "properties": {
+                "preset": {
+                    "displayName": "Atalho",
+                    "type": {
+                        "text": true
+                    }
+                },
+                "ini": {
+                    "displayName": "Início",
+                    "type": {
+                        "text": true
+                    }
+                },
+                "fim": {
+                    "displayName": "Fim",
+                    "type": {
+                        "text": true
+                    }
+                }
+            }
+        }
+    },
+    "supportsKeyboardFocus": true
+}
